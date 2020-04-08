@@ -358,6 +358,16 @@ public sealed class HostLogger
         {
             throw new NotImplementedException();
         }
+
+        /// <summary>
+        /// In VS, calls Marshal.Release on IUnknown to derefcount when we are done with object.
+        /// </summary>
+        /// <param name="unknownId">In VS, the IUnknown</param>
+        /// <returns>In VS, the result from calling Marshal.Release</returns>
+        public static int Release(IntPtr unknownId)
+        {
+            throw new NotImplementedException();
+        }
     }
 
     /// <summary>
@@ -402,6 +412,39 @@ public sealed class HostLogger
         /// Ask the host to async spin up a new instance of the debug engine and go through the launch sequence using the specified options
         /// </summary>
         public static void StartDebugChildProcess(string filePath, string options, Guid engineId)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    /// <summary>
+    /// Provides ability to launch in a VS Code protocol supported terminal
+    /// </summary>
+    public static class HostRunInTerminal
+    {
+        /// <summary>
+        /// Checks if RunInTerminal is available
+        /// </summary>
+        /// <returns></returns>
+        public static bool IsRunInTerminalAvailable()
+        {
+            return false;
+        }
+
+        /// <summary>
+        /// Send command to VS Code to run the commandArgs in its version of a terminal window
+        /// </summary>
+        /// <param name="title">Title for the terminal window</param>
+        /// <param name="workingDirectory">Working directory to start in the terminal window</param>
+        /// <param name="useExternalConsole">True: External Console, False: Integrated Terminal</param>
+        /// <param name="commandArgs">the list of commands, in order, to run.</param>
+        /// <param name="environmentVariables">Environment Variables</param>
+        /// <param name="success">Success callback. In some cases, id contains the pid of the process that was started.</param>
+        /// <param name="failure">Failure callback. Contains the protocol exception that was thrown.</param>
+        /// <returns>true if the message is sent, false if not.</returns>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "cwd")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures")]
+        public static void RunInTerminal(string title, string workingDirectory, bool useExternalConsole, IReadOnlyList<string> commandArgs, IReadOnlyDictionary<string, string> environmentVariables, Action<int?> success, Action<string> failure)
         {
             throw new NotImplementedException();
         }

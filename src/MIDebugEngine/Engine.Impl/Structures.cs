@@ -97,12 +97,12 @@ namespace Microsoft.MIDebugEngine
         void OnException(DebuggedThread thread, string name, string description, uint code, Guid? exceptionCategory = null, ExceptionBreakpointState state = ExceptionBreakpointState.None);
         void OnStepComplete(DebuggedThread thread);
         void OnAsyncBreakComplete(DebuggedThread thread);
-        void OnLoadComplete(DebuggedThread thread);
+        void OnLoadComplete();
         //void OnProgramDestroy(uint exitCode);
-        void OnSymbolSearch(DebuggedModule module, string status, uint dwStatsFlags);
         void OnBreakpointBound(Object objPendingBreakpoint);
         void OnEntryPoint(DebuggedThread thread);
         void OnStopComplete(DebuggedThread thread);
+        void OnSymbolsLoaded(DebuggedModule module);
     };
 
     public class Constants

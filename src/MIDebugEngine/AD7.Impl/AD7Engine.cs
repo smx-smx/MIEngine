@@ -10,6 +10,7 @@ using Microsoft.VisualStudio.Debugger.Interop.UnixPortSupplier;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using MICore;
 using System.Globalization;
 using Microsoft.DebugEngineHost;
@@ -33,7 +34,7 @@ namespace Microsoft.MIDebugEngine
 
     [System.Runtime.InteropServices.ComVisible(true)]
     [System.Runtime.InteropServices.Guid("0fc2f352-2fc1-4f80-8736-51cd1ab28f16")]
-    sealed public class AD7Engine : IDebugEngine2, IDebugEngineLaunch2, IDebugEngine3, IDebugProgram3, IDebugEngineProgram2, IDebugMemoryBytes2, IDebugEngine110
+    sealed public class AD7Engine : IDebugEngine2, IDebugEngineLaunch2, IDebugEngine3, IDebugProgram3, IDebugEngineProgram2, IDebugMemoryBytes2, IDebugEngine110, IDisposable
     {
         // used to send events to the debugger. Some examples of these events are thread create, exception thrown, module load.
         private EngineCallback _engineCallback;
@@ -62,6 +63,10 @@ namespace Microsoft.MIDebugEngine
 
         private static List<int> s_childProcessLaunch;
 
+        private static int s_bpLongBindTimeout = 0;
+
+        private IDebugUnixShellPort _unixPort;
+
         static AD7Engine()
         {
             s_childProcessLaunch = new List<int>();
@@ -74,13 +79,49 @@ namespace Microsoft.MIDebugEngine
             _breakpointManager = new BreakpointManager(this);
         }
 
+        #region Destructor/Dispose
+
         ~AD7Engine()
         {
-            if (_pollThread != null)
+            if (!this.IsDisposed)
             {
-                _pollThread.Close();
+                this.Dispose(isDisposing: false);
             }
         }
+
+        public void Dispose()
+        {
+            Debug.Assert(!this.IsDisposed, "This was already disposed");
+            if (!this.IsDisposed)
+            {
+                this.Dispose(isDisposing: true);
+                this.IsDisposed = true;
+                GC.SuppressFinalize(this);
+            }
+        }
+
+        /// <summary>
+        /// Gets a value indicating whether the object is disposed.
+        /// </summary>
+        private bool IsDisposed { get; set; }
+
+        private void Dispose(bool isDisposing)
+        {
+            _debuggedProcess?.Close();
+            _pollThread?.Close();
+            (_unixPort as IDebugPortCleanup)?.Clean();
+
+            if (isDisposing)
+            {
+                _engineCallback = null;
+                _debuggedProcess = null;
+                _pollThread = null;
+                _ad7ProgramId = Guid.Empty;
+                _unixPort = null;
+            }
+        }
+
+        #endregion
 
         internal static void AddChildProcess(int processId)
         {
@@ -113,15 +154,20 @@ namespace Microsoft.MIDebugEngine
             uint radix;
             if (_settingsCallback != null && _settingsCallback.GetDisplayRadix(out radix) == Constants.S_OK)
             {
-                if (radix != _debuggedProcess.MICommandFactory.Radix)
-                {
-                    _debuggedProcess.WorkerThread.RunOperation(async () =>
-                    {
-                        await _debuggedProcess.MICommandFactory.SetRadix(radix);
-                    });
-                }
+                return radix;
             }
-            return _debuggedProcess.MICommandFactory.Radix;
+            else
+            {
+                return _debuggedProcess.MICommandFactory.Radix;
+            }
+        }
+
+        internal async Task UpdateRadixAsync(uint radix)
+        {
+            if (radix != _debuggedProcess.MICommandFactory.Radix)
+            {
+                    await _debuggedProcess.MICommandFactory.SetRadix(radix);
+            }
         }
 
         internal bool ProgramCreateEventSent
@@ -153,6 +199,8 @@ namespace Microsoft.MIDebugEngine
         public int Attach(IDebugProgram2[] portProgramArray, IDebugProgramNode2[] programNodeArray, uint celtPrograms, IDebugEventCallback2 ad7Callback, enum_ATTACH_REASON dwReason)
         {
             Debug.Assert(_ad7ProgramId == Guid.Empty);
+
+            Logger.LoadMIDebugLogger(_configStore);
 
             if (celtPrograms != 1)
             {
@@ -189,6 +237,10 @@ namespace Microsoft.MIDebugEngine
 
                     _engineCallback = new EngineCallback(this, ad7Callback);
                     LaunchOptions launchOptions = CreateAttachLaunchOptions(processId.dwProcessId, port);
+                    if (port is IDebugUnixShellPort)
+                    {
+                        _unixPort = (IDebugUnixShellPort)port;
+                    }
                     StartDebugging(launchOptions);
                 }
                 else
@@ -249,17 +301,13 @@ namespace Microsoft.MIDebugEngine
                 string remoteDebuggerInstallationSubDirectory = GetMetric("RemoteInstallationSubDirectory") as string;
                 string clrDbgVersion = GetMetric("ClrDbgVersion") as string;
 
-                launchOptions = UnixShellPortLaunchOptions.CreateForAttachRequest(unixPort,
-                                                                                (int)processId,
-                                                                                miMode,
-                                                                                getClrDbgUrl,
-                                                                                remoteDebuggerInstallationDirectory,
-                                                                                remoteDebuggerInstallationSubDirectory,
-                                                                                clrDbgVersion);
-
-                // TODO: Add a tools option page for:
-                // AdditionalSOLibSearchPath
-                // VisualizerFile?
+                launchOptions = LaunchOptions.CreateForAttachRequest(unixPort,
+                                                                    (int)processId,
+                                                                    miMode,
+                                                                    getClrDbgUrl,
+                                                                    remoteDebuggerInstallationDirectory,
+                                                                    remoteDebuggerInstallationSubDirectory,
+                                                                    clrDbgVersion, Logger);
             }
             else
             {
@@ -294,6 +342,7 @@ namespace Microsoft.MIDebugEngine
 
                     try
                     {
+                        _engineCallback.OnLoadComplete();
                         // At this point breakpoints and exception settings have been sent down, so we can resume the target
                         _pollThread.RunOperation(() =>
                         {
@@ -322,7 +371,7 @@ namespace Microsoft.MIDebugEngine
                 }
                 else
                 {
-                    Debug.Fail("Unknown syncronious event");
+                    Debug.Fail("Unknown synchronous event");
                 }
             }
             catch (Exception e)
@@ -331,20 +380,6 @@ namespace Microsoft.MIDebugEngine
             }
 
             return Constants.S_OK;
-        }
-
-        private void Dispose()
-        {
-            WorkerThread pollThread = _pollThread;
-            DebuggedProcess debuggedProcess = _debuggedProcess;
-
-            _engineCallback = null;
-            _debuggedProcess = null;
-            _pollThread = null;
-            _ad7ProgramId = Guid.Empty;
-
-            debuggedProcess?.Close();
-            pollThread?.Close();
         }
 
         // Creates a pending breakpoint in the engine. A pending breakpoint is contains all the information needed to bind a breakpoint to
@@ -364,6 +399,21 @@ namespace Microsoft.MIDebugEngine
             }
 
             return Constants.S_OK;
+        }
+
+        public int GetBPLongBindTimeout()
+        {
+            if (s_bpLongBindTimeout == 0)
+            {
+                s_bpLongBindTimeout = 250; // default is to wait a quarter of a second
+
+                object timeoutExtension = _configStore.GetEngineMetric("BpLongBindTimeoutExtension");
+                if (timeoutExtension != null && timeoutExtension is int && ((int)timeoutExtension == 1))
+                {
+                    s_bpLongBindTimeout = 50000; // if its set, make it longer
+                }
+            }
+            return s_bpLongBindTimeout;
         }
 
         // Informs a DE that the program specified has been atypically terminated and that the DE should
@@ -787,7 +837,7 @@ namespace Microsoft.MIDebugEngine
                 _pollThread.RunOperation(() => _debuggedProcess.CmdDetach());
                 _debuggedProcess.Detach();
             }
-            catch (DebuggerDisposedException) 
+            catch (DebuggerDisposedException)
             {
                 // Detach command could cause DebuggerDisposedException and we ignore that.
             }
@@ -850,12 +900,9 @@ namespace Microsoft.MIDebugEngine
         {
             DebuggedModule[] modules = _debuggedProcess.GetModules();
 
-            AD7Module[] moduleObjects = new AD7Module[modules.Length];
-            for (int i = 0; i < modules.Length; i++)
-            {
-                moduleObjects[i] = new AD7Module(modules[i], _debuggedProcess);
-            }
-
+            AD7Module[] moduleObjects = modules.Select(backendModule => backendModule.Client as AD7Module)
+                .Where(ad7Module => ad7Module != null) // Ignore any modules that we haven't quite sent the module load event for
+                .ToArray();
             ppEnum = new Microsoft.MIDebugEngine.AD7ModuleEnum(moduleObjects);
 
             return Constants.S_OK;

@@ -129,15 +129,35 @@ namespace Microsoft.MIDebugEngine
                     ResourceStrings.ModuleLoadedWithSymbols :
                     ResourceStrings.ModuleLoadedWithoutSymbols;
 
-                debugMessage = string.Format(CultureInfo.CurrentUICulture, ResourceStrings.ModuleLoadMessage, _module.DebuggedModule.Name, symbolLoadStatus);
+                debugMessage = string.Format(CultureInfo.CurrentCulture, ResourceStrings.ModuleLoadMessage, _module.DebuggedModule.Name, symbolLoadStatus);
                 fIsLoad = 1;
             }
             else
             {
-                debugMessage = string.Format(CultureInfo.CurrentUICulture, ResourceStrings.ModuleUnloadMessage, _module.DebuggedModule.Name);
+                debugMessage = string.Format(CultureInfo.CurrentCulture, ResourceStrings.ModuleUnloadMessage, _module.DebuggedModule.Name);
                 fIsLoad = 0;
             }
 
+            return Constants.S_OK;
+        }
+    }
+
+    // This interface is sent by the debug engine (DE) to the session debug manager (SDM) when a modules symbols are loaded.
+    internal sealed class AD7SymbolLoadEvent : AD7AsynchronousEvent, IDebugSymbolSearchEvent2
+    {
+        public const string IID = "EA5B9681-2CE5-4F7A-B842-5183911CE5C6";
+
+        private readonly AD7Module _module;
+
+        public AD7SymbolLoadEvent(AD7Module module)
+        {
+            _module = module;
+        }
+
+        int IDebugSymbolSearchEvent2.GetSymbolSearchInfo(out IDebugModule3 pModule, ref string pbstrDebugMessage, enum_MODULE_INFO_FLAGS[] pdwModuleInfoFlags)
+        {
+            pModule = _module;
+            pdwModuleInfoFlags[0] = enum_MODULE_INFO_FLAGS.MIF_SYMBOLS_LOADED;
             return Constants.S_OK;
         }
     }
@@ -332,7 +352,7 @@ namespace Microsoft.MIDebugEngine
     }
 
     // This interface is sent by the debug engine (DE) to the session debug manager (SDM) when a program is loaded, but before any code is executed.
-    internal sealed class AD7LoadCompleteEvent : AD7StoppingEvent, IDebugLoadCompleteEvent2
+    internal sealed class AD7LoadCompleteEvent : AD7AsynchronousEvent, IDebugLoadCompleteEvent2
     {
         public const string IID = "B1844850-1349-45D4-9F12-495212F5EB0B";
 
@@ -483,36 +503,6 @@ namespace Microsoft.MIDebugEngine
         #endregion
     }
 
-    // This interface is sent by the debug engine (DE) to indicate the results of searching for symbols for a module in the debuggee
-    internal sealed class AD7SymbolSearchEvent : AD7AsynchronousEvent, IDebugSymbolSearchEvent2
-    {
-        public const string IID = "638F7C54-C160-4c7b-B2D0-E0337BC61F8C";
-
-        private AD7Module _module;
-        private string _searchInfo;
-        private enum_MODULE_INFO_FLAGS _symbolFlags;
-
-        public AD7SymbolSearchEvent(AD7Module module, string searchInfo, enum_MODULE_INFO_FLAGS symbolFlags)
-        {
-            _module = module;
-            _searchInfo = searchInfo;
-            _symbolFlags = symbolFlags;
-        }
-
-        #region IDebugSymbolSearchEvent2 Members
-
-        int IDebugSymbolSearchEvent2.GetSymbolSearchInfo(out IDebugModule3 pModule, ref string pbstrDebugMessage, enum_MODULE_INFO_FLAGS[] pdwModuleInfoFlags)
-        {
-            pModule = _module;
-            pbstrDebugMessage = _searchInfo;
-            pdwModuleInfoFlags[0] = _symbolFlags;
-
-            return Constants.S_OK;
-        }
-
-        #endregion
-    }
-
     // This interface is sent when a pending breakpoint has been bound in the debuggee.
     internal sealed class AD7BreakpointBoundEvent : AD7AsynchronousEvent, IDebugBreakpointBoundEvent2
     {
@@ -572,6 +562,32 @@ namespace Microsoft.MIDebugEngine
     internal sealed class AD7StopCompleteEvent : AD7StoppingEvent, IDebugStopCompleteEvent2
     {
         public const string IID = "3DCA9DCD-FB09-4AF1-A926-45F293D48B2D";
+    }
+
+    internal sealed class AD7ProcessInfoUpdatedEvent : AD7AsynchronousEvent, IDebugProcessInfoUpdatedEvent158
+    {
+        public const string IID = "96C242FC-F584-4C3E-8FED-384D3D13EF36";
+        private readonly string _name;
+        private readonly uint _pid;
+
+        public AD7ProcessInfoUpdatedEvent(string name, uint pid)
+        {
+            _name = name;
+            _pid = pid;
+        }
+
+        public int GetUpdatedProcessInfo(out string pbstrName, out uint pdwSystemProcessId)
+        {
+            pbstrName = _name;
+            pdwSystemProcessId = _pid;
+            return Constants.S_OK;
+        }
+
+        internal static void Send(AD7Engine engine, string name, uint pid)
+        {
+            AD7ProcessInfoUpdatedEvent eventObject = new AD7ProcessInfoUpdatedEvent(name, pid);
+            engine.Callback.Send(eventObject, IID, engine, null);
+        }
     }
 
     internal sealed class AD7CustomDebugEvent : AD7AsynchronousEvent, IDebugCustomEvent110

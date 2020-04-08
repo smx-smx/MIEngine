@@ -37,6 +37,10 @@ namespace Microsoft.MIDebugPackage
     // This attribute is needed to let the shell know that this package exposes some menus.
     [ProvideMenuResource("Menus.ctmenu", 1)]
     [Guid(GuidList.guidMIDebugPackagePkgString)]
+#if LAB
+    // Adding this dll location to VS probe path. Custom launcher types are referenced by Linux/Azure Sphere workloads. 
+    [ProvideBindingPath]
+#endif
     public sealed class MIDebugPackagePackage : Package, IOleCommandTarget
     {
         private IOleCommandTarget _packageCommandTarget;
@@ -341,7 +345,7 @@ namespace Microsoft.MIDebugPackage
                 else
                     message = e.Message;
 
-                commandWindow.Print(string.Format("Error: {0}\r\n", message));
+                commandWindow.Print(string.Format(CultureInfo.CurrentCulture, "Error: {0}\r\n", message));
                 return;
             }
 

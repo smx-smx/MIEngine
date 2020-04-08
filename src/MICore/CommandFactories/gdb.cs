@@ -26,7 +26,11 @@ namespace MICore
         public override void DefineCurrentThread(int threadId)
         {
             _currentThreadId = threadId;
+            // If current threadId is changed, reset _currentFrameLevel
+            _currentFrameLevel = 0;
         }
+
+        public override int CurrentThread { get { return _currentThreadId; } }
 
         public override bool SupportsStopOnDynamicLibLoad()
         {
@@ -41,21 +45,6 @@ namespace MICore
         public override bool AllowCommandsWhileRunning()
         {
             return false;
-        }
-
-        public override bool UseExternalConsoleForLocalLaunch(LocalLaunchOptions localLaunchOptions)
-        {
-            // NOTE: On Linux, there are issues if we try to have GDB launch the process as a child of VS 
-            // code -- it will cause a deadlock during debuggee launch. So we always use the external console 
-            // unless we are in a scenario where the debuggee will not be a child process.
-            if (PlatformUtilities.IsLinux())
-            {
-                return String.IsNullOrEmpty(localLaunchOptions.MIDebuggerServerAddress) && !localLaunchOptions.IsCoreDump;
-            }
-            else
-            {
-                return base.UseExternalConsoleForLocalLaunch(localLaunchOptions);
-            }
         }
 
         protected override async Task<Results> ThreadFrameCmdAsync(string command, ResultClass expectedResultClass, int threadId, uint frameLevel)
@@ -169,7 +158,7 @@ namespace MICore
         public override async Task<List<ulong>> StartAddressesForLine(string file, uint line)
         {
             string cmd = "info line " + file + ":" + line;
-            var result = await _debugger.ConsoleCmdAsync(cmd);
+            var result = await _debugger.ConsoleCmdAsync(cmd, allowWhileRunning: false);
             List<ulong> addresses = new List<ulong>();
             using (StringReader stringReader = new StringReader(result))
             {
@@ -260,6 +249,10 @@ namespace MICore
                     {
                         return TargetArchitecture.ARM64;
                     }
+                    else if (resultLine.IndexOf("aarch64", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        return TargetArchitecture.ARM64;
+                    }
                     else if (resultLine.IndexOf("arm", StringComparison.OrdinalIgnoreCase) >= 0)
                     {
                         return TargetArchitecture.ARM;
@@ -283,7 +276,7 @@ namespace MICore
         public override async Task Catch(string name, bool onlyOnce = false, ResultClass resultClass = ResultClass.done)
         {
             string command = onlyOnce ? "tcatch " : "catch ";
-            await _debugger.ConsoleCmdAsync(command + name);
+            await _debugger.ConsoleCmdAsync(command + name, allowWhileRunning: false);
         }
     }
 }

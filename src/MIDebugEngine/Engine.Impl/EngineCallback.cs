@@ -29,7 +29,10 @@ namespace Microsoft.MIDebugEngine
         {
             uint attributes;
             Guid riidEvent = new Guid(iidEvent);
-
+            if (!(eventObject is AD7OutputDebugStringEvent))
+            {
+                _engine.Logger.WriteLine("Send Event {0}", eventObject.GetType().Name);
+            }
             EngineUtils.RequireOk(eventObject.GetAttributes(out attributes));
             EngineUtils.RequireOk(_eventCallback.Event(_engine, null, program, thread, eventObject, ref riidEvent, attributes));
         }
@@ -83,6 +86,12 @@ namespace Microsoft.MIDebugEngine
             // symbols are loaded for. A production debugger will need to bind breakpoints when a new module is loaded.
 
             Send(eventObject, AD7ModuleLoadEvent.IID, null);
+        }
+
+        public void OnSymbolsLoaded(DebuggedModule module)
+        {
+            var eventObject = new AD7SymbolLoadEvent(module.Client as AD7Module);
+            Send(eventObject, AD7SymbolLoadEvent.IID, null);
         }
 
         public void OnModuleUnload(DebuggedModule debuggedModule)
@@ -233,30 +242,16 @@ namespace Microsoft.MIDebugEngine
             Send(eventObject, AD7AsyncBreakCompleteEvent.IID, ad7Thread);
         }
 
-        public void OnLoadComplete(DebuggedThread thread)
+        public void OnLoadComplete()
         {
-            AD7Thread ad7Thread = (AD7Thread)thread.Client;
             AD7LoadCompleteEvent eventObject = new AD7LoadCompleteEvent();
-            Send(eventObject, AD7LoadCompleteEvent.IID, ad7Thread);
+            Send(eventObject, AD7LoadCompleteEvent.IID, null);
         }
 
         public void OnProgramDestroy(uint exitCode)
         {
             AD7ProgramDestroyEvent eventObject = new AD7ProgramDestroyEvent(exitCode);
             Send(eventObject, AD7ProgramDestroyEvent.IID, null);
-        }
-
-        // Engines notify the debugger about the results of a symbol serach by sending an instance
-        // of IDebugSymbolSearchEvent2
-        public void OnSymbolSearch(DebuggedModule module, string status, uint dwStatusFlags)
-        {
-            enum_MODULE_INFO_FLAGS statusFlags = (enum_MODULE_INFO_FLAGS)dwStatusFlags;
-
-            string statusString = ((statusFlags & enum_MODULE_INFO_FLAGS.MIF_SYMBOLS_LOADED) != 0 ? "Symbols Loaded - " : "No symbols loaded") + status;
-
-            AD7Module ad7Module = new AD7Module(module, _engine.DebuggedProcess);
-            AD7SymbolSearchEvent eventObject = new AD7SymbolSearchEvent(ad7Module, statusString, statusFlags);
-            Send(eventObject, AD7SymbolSearchEvent.IID, null);
         }
 
         // Engines notify the debugger that a breakpoint has bound through the breakpoint bound event.

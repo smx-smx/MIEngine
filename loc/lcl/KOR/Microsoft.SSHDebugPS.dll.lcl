@@ -1,0 +1,783 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<LCX SchemaVersion="6.0" Name="E:\A\_work\9\s\bin\Lab.Release\Microsoft.SSHDebugPS.dll" PsrId="211" FileType="1" SrcCul="en-US" TgtCul="ko-KR" Desc="Commenting file created by LCXAdmin. For more information, please visit http://localizability/longhorn/LcxAdmin.asp" xmlns="http://schemas.microsoft.com/locstudio/2006/6/lcx">
+  <OwnedComments>
+    <Cmt Name="Dev" />
+    <Cmt Name="LcxAdmin" />
+    <Cmt Name="Loc" />
+    <Cmt Name="RCCX" />
+  </OwnedComments>
+  <Item ItemId=";Managed Resources" ItemType="0" PsrId="211" Leaf="true">
+    <Disp Icon="Expand" Expand="true" Disp="true" LocTbl="false" />
+  </Item>
+  <Item ItemId=";Microsoft.SSHDebugPS.StringResources.resources" ItemType="0" PsrId="211" Leaf="false">
+    <Disp Icon="Expand" Expand="true" Disp="true" LocTbl="false" Path=" \ ;Managed Resources \ 0 \ 0" />
+    <Item ItemId=";Strings" ItemType="0" PsrId="211" Leaf="false">
+      <Disp Icon="Str" Disp="true" LocTbl="false" />
+      <Item ItemId=";AuthenticationFailureDescription" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Connecting to the remote system failed due to authentication failure. Enter your updated connection info and try connecting again.]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[인증 오류로 인해 원격 시스템에 연결하지 못했습니다. 업데이트된 연결 정보를 입력하고 다시 연결해 보세요.]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";AuthenticationFailureHeader" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Authentication Failure]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[인증 오류]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";CommandFailedMessageFormat" ItemType="0" PsrId="211" InstFlg="true" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA["Command '{0}' failed with code '{1}'. {2}"]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA["명령 '{0}'이(가) 실패했습니다(코드: '{1}'). {2}"]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";CopyFile_TempFilePrefix" ItemType="0" PsrId="211" InstFlg="true" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Microsoft-SSHPortSupplier-FileCopy-]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[Microsoft-SSHPortSupplier-FileCopy-]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";Docker_PSDescription" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[The Docker (Linux Container) connection type allows Visual Studio to connect to Docker containers running locally or remotely (using SSH).]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[Docker(Linux 컨테이너) 연결 형식을 사용하면 Visual Studio에서 로컬로 또는 원격으로 실행되는 Docker 컨테이너에 연결할 수 있습니다(SSH 사용).]]></Val>
+          </Tgt>
+          <Prev Cat="Text">
+            <Val><![CDATA[Docker Transport allows connecting Visual Studio to Docker containers locally or through SSH.]]></Val>
+          </Prev>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";Docker_PSName" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Docker (Linux Container)]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[Docker(Linux 컨테이너)]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";Error_CommandFailed" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Command failed to execute]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[명령을 실행하지 못했습니다.]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";Error_ContainerConnectionStringInvalidMessage" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[The connection string provided is not formatted properly.]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[제공된 연결 문자열의 형식이 잘못되었습니다.]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";Error_ContainerConnectionStringInvalidTitle" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Connection string format invalid.]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[연결 문자열의 형식이 잘못됨]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";Error_ContainerUnavailableMessage" ItemType="0" PsrId="211" InstFlg="true" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Container '{0}' is not in the list of running containers.]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA['{0}' 컨테이너가 실행 중인 컨테이너 목록에 없습니다.]]></Val>
+          </Tgt>
+          <Prev Cat="Text">
+            <Val><![CDATA[Attempting to run '/bin/sh' on container '{0}' failed with output:]D;]A;'{1}']]></Val>
+          </Prev>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";Error_ContainerUnavailableTitle" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Container unavailable.]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[컨테이너를 사용할 수 없음]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";Error_CopyFileFailed" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Failed to copy files.]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[파일을 복사하지 못했습니다.]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";Error_CopyFile_SourceNotFound" ItemType="0" PsrId="211" InstFlg="true" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Source file '{0}' not found.]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[소스 파일 '{0}'을(를) 찾을 수 없습니다.]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";Error_ExitCodeNotParseable" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Unable to parse exit code.]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[종료 코드를 구문 분석할 수 없습니다.]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";Error_InvalidDirectory" ItemType="0" PsrId="211" InstFlg="true" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[The specified directory {0} could not be created or accessed.]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[지정된 디렉터리 {0}을(를) 만들거나 액세스할 수 없습니다.]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";Error_OperationTimedOut" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Operation timed out.]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[작업 시간이 초과되었습니다.]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";Error_PSErrorFormat" ItemType="0" PsrId="211" InstFlg="true" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA['ps' command failed with exit code '{0}'. ]D;]A;Error:]D;]A;'{1}']]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA['ps' 명령이 실패했습니다(종료 코드: '{0}'). ]D;]A;오류:]D;]A;'{1}']]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";Error_PSFailed" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Unable to obtain process list.]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[프로세스 목록을 가져올 수 없습니다.]]></Val>
+          </Tgt>
+          <Prev Cat="Text">
+            <Val><![CDATA[Unable to obtain process listing. 'ps' command failed.]]></Val>
+          </Prev>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";Error_PSMissing" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA['ps' command missing.]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA['ps' 명령이 없습니다.]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";Error_ProcFSError" ItemType="0" PsrId="211" InstFlg="true" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Parsing '/proc' for process list failed. ]D;]A;Error:]D;]A;'{0}']]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[프로세스 목록을 대상으로 '/proc'를 구문 분석하지 못했습니다. ]D;]A;오류:]D;]A;'{0}']]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";Error_ProcessListFailedTitle" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Failed to list processes.]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[프로세스를 나열하지 못함]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";Error_ShellNotRunning" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Cannot process command. Connection is not open.]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[명령을 처리할 수 없습니다. 연결이 열려 있지 않습니다.]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";Error_SourceFileNotFound" ItemType="0" PsrId="211" InstFlg="true" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Source file '{0}' not found]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[소스 파일 '{0}'을(를) 찾을 수 없습니다.]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";HeaderTextFormat" ItemType="0" PsrId="211" InstFlg="true" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Enter credentials to connect to {0}]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[자격 증명을 입력하여 {0}에 연결]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";HostName_PlaceHolder" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[<hostname>]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[<호스트 이름>]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";ProcessName_Unknown" ItemType="0" PsrId="211" InstFlg="true" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[<unknown>]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[<알 수 없음>]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";SSH_PSDescription" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[SSH (Secure Shell) Transport allows connecting Visual Studio to computers running an SSH server with a bash-like shell (ex: Linux, macOS, etc).]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[SSH(Secure Shell) 전송을 사용하면 bash와 유사한 셸(예: Linux, macOS 등)을 사용하여 SSH 서버를 실행하는 컴퓨터에 Visual Studio를 연결할 수 있습니다.]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";UserName_PlaceHolder" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[<username>]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[<사용자 이름>]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";WaitingOp_Connecting" ItemType="0" PsrId="211" InstFlg="true" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Connecting to {0}...]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[{0}에 연결하는 중...]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";WaitingOp_ExecutingCommand" ItemType="0" PsrId="211" InstFlg="true" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Running command '{0}' on the remote system...]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[원격 시스템에서 '{0}' 명령을 실행하는 중...]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";WaitingOp_ExecutingPS" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Running ps on the remote system...]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[원격 시스템에서 ps를 실행하는 중...]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";WaitingOp_HomeDirectory" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Obtaining user's home directory path from remote system...]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[원격 시스템에서 사용자의 홈 디렉터리 경로를 가져오는 중...]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";WaitingOp_MakeDirectory" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Creating directory on remote system...]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[원격 시스템에서 디렉터리를 만드는 중...]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+    </Item>
+  </Item>
+  <Item ItemId=";Microsoft.SSHDebugPS.UI.UIResources.resources" ItemType="0" PsrId="211" Leaf="false">
+    <Disp Icon="Expand" Expand="true" Disp="true" LocTbl="false" Path=" \ ;Managed Resources \ 0 \ 0" />
+    <Item ItemId=";Strings" ItemType="0" PsrId="211" Leaf="false">
+      <Disp Icon="Str" Disp="true" LocTbl="false" />
+      <Item ItemId=";AddNewSSHConnectionAutomationName" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Add New SSH Connection]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[새 SSH 연결 추가]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";AddNewSSHConnectionLabel" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Add...]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[추가...]]></Val>
+          </Tgt>
+          <Prev Cat="Text">
+            <Val><![CDATA[Add New SSH Connection]]></Val>
+          </Prev>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";AddNewSSHConnectionToolTip" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Add a new SSH connection to a remote machine.]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[원격 머신에 새 SSH 연결을 추가합니다.]]></Val>
+          </Tgt>
+          <Prev Cat="Text">
+            <Val><![CDATA[Add New SSH Connection]]></Val>
+          </Prev>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";AdvancedSettingsHeader" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[_Advanced Settings]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[고급 설정(_A)]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";CancelLabel" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[C_ancel]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[취소(_A)]]></Val>
+          </Tgt>
+          <Prev Cat="Text">
+            <Val><![CDATA[Cancel]]></Val>
+          </Prev>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";Collapsed" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Collapsed]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[축소됨]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";CommandExecutionErrorFormat" ItemType="0" PsrId="211" InstFlg="true" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Executing command '{0}' failed. {1}]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA['{0}' 명령을 실행하지 못했습니다. {1}]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";CommandExecutionErrorWithExitCodeFormat" ItemType="0" PsrId="211" InstFlg="true" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Executing command '{0}' failed with exit code '{1}'. '{2}']]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA['{0}' 명령을 실행하지 못했습니다(종료 코드: '{1}'). '{2}']]></Val>
+          </Tgt>
+          <Prev Cat="Text">
+            <Val><![CDATA[Executing command '{0}' failed with exit code {1}. {2}]]></Val>
+          </Prev>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";CommandLabelText" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Command: ]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[명령: ]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";ConnectionLabel" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Docker _CLI host:]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[Docker CLI 호스트(_C):]]></Val>
+          </Tgt>
+          <Prev Cat="Text">
+            <Val><![CDATA[_Connection type:]]></Val>
+          </Prev>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";ConnectionToolTip" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Location from which to run the Docker CLI. To manage remote connections, in the menu go to Tools -> Options and find Cross Platform -> Connection Manager.]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[Docker CLI를 실행할 위치입니다. 원격 연결을 관리하려면 메뉴에서 [도구]5D; > [옵션]5D;으로 이동하여 [플랫폼 간]5D; > [연결 관리자]5D;를 찾습니다.]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";ContainerList" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Container List]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[컨테이너 목록]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";ContainerStatusTextBox" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Container Status:]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[컨테이너 상태:]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";ContainersFoundStatusText" ItemType="0" PsrId="211" InstFlg="true" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Found {0} containers.]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[컨테이너를 {0}개 찾았습니다.]]></Val>
+          </Tgt>
+          <Prev Cat="Text">
+            <Val><![CDATA[Found {0} containers]]></Val>
+          </Prev>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";CreatedLabelText" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Created: ]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[생성됨: ]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";DialogTitle" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Select Docker Container]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[Docker 컨테이너 선택]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";ErrorStatusTextFormat" ItemType="0" PsrId="211" InstFlg="true" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Error: {0}]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[오류: {0}]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";ExpandCommandAutomationName" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Show/hide container details]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[컨테이너 세부 정보 표시/숨기기]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";Expanded" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Expanded]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[확장됨]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";ExpanderToolTip" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Show Container Details]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[컨테이너 세부 정보 표시]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";HostnameAutomationName" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Optional Docker Host name]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[선택적 Docker 호스트 이름]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";HostnameLabel" ItemType="0" PsrId="211" InstFlg="true" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Docker _host (Optional):]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[Docker 호스트(선택 사항)(_H):]]></Val>
+          </Tgt>
+          <Prev Cat="Text">
+            <Val><![CDATA[_Hostname (Optional):]]></Val>
+          </Prev>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";HostnameTip" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Specify a hostname for connecting to a different Docker host. ]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[다른 Docker 호스트에 연결하는 경우 호스트 이름을 지정하세요. ]]></Val>
+          </Tgt>
+          <Prev Cat="Text">
+            <Val><![CDATA[Specify a hostname if connecting to a different Docker daemon. ]]></Val>
+          </Prev>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";IdLabelText" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Id: ]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[ID: ]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";ImageLabelText" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Image: ]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[이미지: ]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";IsLocalConnectionLabel" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Local Connection]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[로컬 연결]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";LocalMachine" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Local Machine]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[로컬 컴퓨터]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";NameLabelText" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Name: ]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[이름: ]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";NoContainersFound" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[No Containers Found.]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[컨테이너를 찾을 수 없습니다.]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";NoPortsText" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[None]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[없음]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";OKLabel" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[_OK]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[확인(_O)]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";OptionalHintText" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Optional]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[선택 사항]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";PortsLabelText" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Ports: ]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[포트: ]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";QueryingForContainersMessage" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Querying for containers...]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[컨테이너를 쿼리하는 중...]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";RefreshHyperlink" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Refresh]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[새로 고침]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";RefreshToolTip" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Refresh Container List]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[컨테이너 목록 새로 고침]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";RemoteConnectionStringLabel" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Remote Connection]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[원격 연결]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";SSHConnectingStatusText" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Connecting via SSH...]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[SSH를 통해 연결하는 중...]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";SSHConnectionFailedStatusText" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[SSH Connection failed. Press Refresh to try again.]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[SSH 연결에 실패했습니다. 다시 시도하려면 [새로 고침]5D;을 누르세요.]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";SearchingStatusText" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Searching...]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[검색 중...]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";StatusLabelText" ItemType="0" PsrId="211" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Status: ]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[상태: ]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+    </Item>
+  </Item>
+  <Item ItemId=";Microsoft.SSHDebugPS.g.resources" ItemType="0" PsrId="211" Leaf="false">
+    <Disp Icon="Expand" Expand="true" Disp="true" LocTbl="false" Path=" \ ;Managed Resources \ 0 \ 0" />
+    <Item ItemId=";ui/containerpickerdialogwindow.baml" ItemType="0" PsrId="211" Leaf="true">
+      <Bin BinId="3">
+        <Val><![CDATA[AAEAAAD/////AQAAAAAAAAAEAQAAAAxTeXN0ZW0uSW50MzIBAAAAB21fdmFsdWUACAMAAAALAAEAAAD/////AQAAAAAAAAAGAQAAACN1aS9jb250YWluZXJwaWNrZXJkaWFsb2d3aW5kb3cuYmFtbAsAAQAAAP////8BAAAAAAAAAAQBAAAAH1N5c3RlbS5Vbml0eVNlcmlhbGl6YXRpb25Ib2xkZXIDAAAABERhdGEJVW5pdHlUeXBlDEFzc2VtYmx5TmFtZQEAAQgGAgAAAB9TeXN0ZW0uSU8uVW5tYW5hZ2VkTWVtb3J5U3RyZWFtBAAAAAYDAAAAS21zY29ybGliLCBWZXJzaW9uPTQuMC4wLjAsIEN1bHR1cmU9bmV1dHJhbCwgUHVibGljS2V5VG9rZW49Yjc3YTVjNTYxOTM0ZTA4OQsAAQAAAP////8BAAAAAAAAAA8BAAAA1i8AAAIMAAAATQBTAEIAQQBNAEwAAABgAAAAYAAAAGAAAQD/////ABxpAABlTWljcm9zb2Z0LlZpc3VhbFN0dWRpby5TaGVsbC4xNS4wLCBWZXJzaW9uPTE1LjAuMC4wLCBDdWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWIwM2Y1ZjdmMTFkNTBhM2EbgQFaY2xyLW5hbWVzcGFjZTpNaWNyb3NvZnQuVmlzdWFsU3R1ZGlvLlBsYXRmb3JtVUk7YXNzZW1ibHk9TWljcm9zb2Z0LlZpc3VhbFN0dWRpby5TaGVsbC4xNS4wIU1pY3Jvc29mdC5WaXN1YWxTdHVkaW8uUGxhdGZvcm1VSQAAG3ZVY2xyLW5hbWVzcGFjZTpNaWNyb3NvZnQuVmlzdWFsU3R1ZGlvLlNoZWxsO2Fzc2VtYmx5PU1pY3Jvc29mdC5WaXN1YWxTdHVkaW8uU2hlbGwuMTUuMBxNaWNyb3NvZnQuVmlzdWFsU3R1ZGlvLlNoZWxsAAAcZgEAYk1pY3Jvc29mdC5WaXN1YWxTdHVkaW8uSW1hZ2luZywgVmVyc2lvbj0xNS4wLjAuMCwgQ3VsdHVyZT1uZXV0cmFsLCBQdWJsaWNLZXlUb2tlbj1iMDNmNWY3ZjExZDUwYTNhG3dUY2xyLW5hbWVzcGFjZTpNaWNyb3NvZnQuVmlzdWFsU3R1ZGlvLkltYWdpbmc7YXNzZW1ibHk9TWljcm9zb2Z0LlZpc3VhbFN0dWRpby5JbWFnaW5nHk1pY3Jvc29mdC5WaXN1YWxTdHVkaW8uSW1hZ2luZwEAHGsCAGdNaWNyb3NvZnQuVmlzdWFsU3R1ZGlvLkltYWdlQ2F0YWxvZywgVmVyc2lvbj0xNS4wLjAuMCwgQ3VsdHVyZT1uZXV0cmFsLCBQdWJsaWNLZXlUb2tlbj1iMDNmNWY3ZjExZDUwYTNhG3xZY2xyLW5hbWVzcGFjZTpNaWNyb3NvZnQuVmlzdWFsU3R1ZGlvLkltYWdpbmc7YXNzZW1ibHk9TWljcm9zb2Z0LlZpc3VhbFN0dWRpby5JbWFnZUNhdGFsb2ceTWljcm9zb2Z0LlZpc3VhbFN0dWRpby5JbWFnaW5nAgAcXAMAWE1pY3Jvc29mdC5TU0hEZWJ1Z1BTLCBWZXJzaW9uPTE0LjAuMC4wLCBDdWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWIwM2Y1ZjdmMTFkNTBhM2EbOyJjbHItbmFtZXNwYWNlOk1pY3Jvc29mdC5TU0hEZWJ1Z1BTFE1pY3Jvc29mdC5TU0hEZWJ1Z1BTAwAbQSVjbHItbmFtZXNwYWNlOk1pY3Jvc29mdC5TU0hEZWJ1Z1BTLlVJF01pY3Jvc29mdC5TU0hEZWJ1Z1BTLlVJAwAbSSljbHItbmFtZXNwYWNlOk1pY3Jvc29mdC5TU0hEZWJ1Z1BTLkRvY2tlchtNaWNyb3NvZnQuU1NIRGVidWdQUy5Eb2NrZXIDAB05AAADADNNaWNyb3NvZnQuU1NIRGVidWdQUy5VSS5Db250YWluZXJQaWNrZXJEaWFsb2dXaW5kb3cDAAAAHFIEAE5XaW5kb3dzQmFzZSwgVmVyc2lvbj00LjAuMC4wLCBDdWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPTMxYmYzODU2YWQzNjRlMzUcXAUAWFByZXNlbnRhdGlvbkZyYW1ld29yaywgVmVyc2lvbj00LjAuMC4wLCBDdWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPTMxYmYzODU2YWQzNjRlMzUcVwYAU1ByZXNlbnRhdGlvbkNvcmUsIFZlcnNpb249NC4wLjAuMCwgQ3VsdHVyZT1uZXV0cmFsLCBQdWJsaWNLZXlUb2tlbj0zMWJmMzg1NmFkMzY0ZTM1FEQAOWh0dHA6Ly9zY2hlbWFzLm1pY3Jvc29mdC5jb20vd2luZngvMjAwNi94YW1sL3ByZXNlbnRhdGlvbgMABAAFAAYAHFIHAE5TeXN0ZW0uWGFtbCwgVmVyc2lvbj00LjAuMC4wLCBDdWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWI3N2E1YzU2MTkzNGUwODkUOgF4LGh0dHA6Ly9zY2hlbWFzLm1pY3Jvc29mdC5jb20vd2luZngvMjAwNi94YW1sBAAEAAUABgAHABRxCnBsYXRmb3JtdWlaY2xyLW5hbWVzcGFjZTpNaWNyb3NvZnQuVmlzdWFsU3R1ZGlvLlBsYXRmb3JtVUk7YXNzZW1ibHk9TWljcm9zb2Z0LlZpc3VhbFN0dWRpby5TaGVsbC4xNS4wBAAEAAUABgAHABRmBHZzdWlVY2xyLW5hbWVzcGFjZTpNaWNyb3NvZnQuVmlzdWFsU3R1ZGlvLlNoZWxsO2Fzc2VtYmx5PU1pY3Jvc29mdC5WaXN1YWxTdHVkaW8uU2hlbGwuMTUuMAQABAAFAAYABwAUagl2c2ltYWdpbmdUY2xyLW5hbWVzcGFjZTpNaWNyb3NvZnQuVmlzdWFsU3R1ZGlvLkltYWdpbmc7YXNzZW1ibHk9TWljcm9zb2Z0LlZpc3VhbFN0dWRpby5JbWFnaW5nBAAEAAUABgAHABRtB2NhdGFsb2dZY2xyLW5hbWVzcGFjZTpNaWNyb3NvZnQuVmlzdWFsU3R1ZGlvLkltYWdpbmc7YXNzZW1ibHk9TWljcm9zb2Z0LlZpc3VhbFN0dWRpby5JbWFnZUNhdGFsb2cEAAQABQAGAAcAFDQFbG9jYWwiY2xyLW5hbWVzcGFjZTpNaWNyb3NvZnQuU1NIRGVidWdQUwQABAAFAAYABwAUNAJ1aSVjbHItbmFtZXNwYWNlOk1pY3Jvc29mdC5TU0hEZWJ1Z1BTLlVJBAAEAAUABgAHABQ8BmRvY2tlciljbHItbmFtZXNwYWNlOk1pY3Jvc29mdC5TU0hEZWJ1Z1BTLkRvY2tlcgQABAAFAAYABwAtAQAAACQbyv8VQ29udGFpbmVyUGlja2VyRGlhbG9nmf0kCcv/AzQ1MKT+JAnM/wM1MDCk/iQJx/8DNDUwpP4kCdH/AzYwMKT+HxQAAB39AA1TaG93SW5UYXNrYmFyBgYAAC4AACAgAAAcVnNGb250LkVudmlyb25tZW50Rm9udEZhbWlseSPl/70AAAAgHgEAGlZzRm9udC5FbnZpcm9ubWVudEZvbnRTaXplI+T/vQABAB0mAQADACBNaWNyb3NvZnQuU1NIRGVidWdQUy5VSVJlc291cmNlcx8SAQABAAALRGlhbG9nVGl0bGUfDAIAHf0ABVRpdGxlIwIAWgIBAB8cAwAd/QAVV2luZG93U3RhcnR1cExvY2F0aW9uJBEDAAtDZW50ZXJPd25lcj3/HxAEAB7/AAlSZXNvdXJjZXMNBAAdOwIAAxA1TWljcm9zb2Z0LlNTSERlYnVnUFMuRG9ja2VyLkJvb2xUb1Zpc2liaWxpdHlDb252ZXJ0ZXIgHQIAGUJvb2xUb1Zpc2liaWxpdHlDb252ZXJ0ZXIdOwMAAxA1TWljcm9zb2Z0LlNTSERlYnVnUFMuRG9ja2VyLlRleHRUb1Zpc2liaWxpdHlDb252ZXJ0ZXIgHQMAGVRleHRUb1Zpc2liaWxpdHlDb252ZXJ0ZXIgEgQADkdseXBoUGF0aFN0eWxlHxEFAJT9AApUYXJnZXRUeXBlHw8GANT9AAhQcm9wZXJ0eR02BAAAADBNaWNyb3NvZnQuVmlzdWFsU3R1ZGlvLlBsYXRmb3JtVUkuVHJlZVZpZXdDb2xvcnMfFAcABAAADUdseXBoQnJ1c2hLZXkfDAgA1P0ABVZhbHVlHw8JAJT9AAhUcmlnZ2Vycx8OCgCG/wAHQmluZGluZx8VCwDs/wAOUmVsYXRpdmVTb3VyY2UfCwwA/P0ABE1vZGUfEw0A/P0ADEFuY2VzdG9yVHlwZR8LDgDs/wAEUGF0aB8MDwCG/wAFVmFsdWUfHRAABAAAFkdseXBoTW91c2VPdmVyQnJ1c2hLZXkgHwUAG0Nvbm5lY3Rpb25UeXBlQ29tYm9Cb3hTdHlsZSASBgAOTWFpbkxhYmVsU3R5bGUgFAcAEEhlYWRlckxhYmVsU3R5bGUgGAgAFEhlYWRlclRleHRCbG9ja1N0eWxlIBIJAA5Cb2R5TGFiZWxTdHlsZSAWCgASQm9keVRleHRCbG9ja1N0eWxlIBULABFDb21ib0JveEl0ZW1TdHlsZR00BQAGAC5TeXN0ZW0uV2luZG93cy5BdXRvbWF0aW9uLkF1dG9tYXRpb25Qcm9wZXJ0aWVzIB8MABtMaXN0Qm94SXRlbUZvY3VzVmlzdWFsU3R5bGUgEA0ADExpc3RCb3hTdHlsZSASDgAOaW5zdGFuY2VMYXlvdXQdOQYAAAAzTWljcm9zb2Z0LlZpc3VhbFN0dWRpby5QbGF0Zm9ybVVJLkVudmlyb25tZW50Q29sb3JzHyERAAYAABpTeXN0ZW1BY3RpdmVCb3JkZXJCcnVzaEtleR8SEgBL/gALSXNJdGVtc0hvc3QgGQ8AFUxpc3RCb3hDb250YWluZXJTdHlsZR8PEwBQ/QAIUHJvcGVydHkfDBQAUP0ABVZhbHVlHwsVAOz/AARNb2RlHyMWAAYAABxTeXN0ZW1JbmFjdGl2ZUJvcmRlckJydXNoS2V5HyMXAAYAABxDb250cm9sTGlua1RleHRIb3ZlckJydXNoS2V5HxYYANL9AA9TdHJva2VEYXNoQXJyYXkfGhkASv0AE1NuYXBzVG9EZXZpY2VQaXhlbHMgExAAD0h5cGVybGlua0J1dHRvbh8eGgAGAAAXQ29udHJvbExpbmtUZXh0QnJ1c2hLZXkfERsAlP8AClRhcmdldFR5cGUfCxwAgv0DBE5hbWUfDh0Agv0AB1BhZGRpbmcfCx4A//8DBE5hbWUfDx8AlP8ACFRyaWdnZXJzHxEgANT9AApUYXJnZXROYW1lHyUhAAYAAB5Db250cm9sTGlua1RleHRQcmVzc2VkQnJ1c2hLZXkfJSIABgAAHlBhbmVsSHlwZXJsaW5rRGlzYWJsZWRCcnVzaEtleR8PIwCI/wAIRGF0YVR5cGUfGCQAAv8AEUNvbHVtbkRlZmluaXRpb25zHxUlAAL/AA5Sb3dEZWZpbml0aW9ucx8LJgDJ/wMETmFtZR8iJwABAAAbRXhwYW5kQ29tbWFuZEF1dG9tYXRpb25OYW1lHwsoAAUAAAROYW1lHxEpAAUAAApJdGVtU3RhdHVzHw4qAB7/AAdUb29sVGlwHwsrAEb+AwROYW1lHxAsAAEAAAlDb2xsYXBzZWQfDy0ABQAACEhlbHBUZXh0HxAuAOz/AAlDb252ZXJ0ZXIfGS8A7P8AEkNvbnZlcnRlclBhcmFtZXRlch8PMAABAAAIRXhwYW5kZWQfEzEA6/8ADFN0cmluZ0Zvcm1hdB8LMgAC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AwcAAC0IAAAAHwtNAAcAAwROYW1lJBRNAA5Db250YWluZXJDb3VudJn9JAfB/wE0xf4kB8P/ATDF/iQNz/8HMCw5LDAsMHH9GRIOdWlkU3RhdHVzTGFiZWz+/yQKj/8EV3JhcD3/B5L/A+z/ACoQFRNDb250YWluZXJzRm91bmRUZXh0KyQMFQAGT25lV2F5Pf8ECAQDyf8ALQkAAAAkICYAGlJlZnJlc2hDb250YWluZXJMaXN0QnV0dG9umf0kB8H/ATTF/iQHw/8BMcX+JA7P/wgxMiw5LDAsMHH9JAvQ/wVSaWdodD3/I8n/WwIQAAf5/wPs/wAqEBAOUmVmcmVzaENvbW1hbmQrBAgH8v8D7P8AKhAWFFJlZnJlc2hDb21tYW5kLkxhYmVsKwQIByoAA+z/ACoQGBZSZWZyZXNoQ29tbWFuZC5Ub29sVGlwKwQIBB0uCAADAChNaWNyb3NvZnQuU1NIRGVidWdQUy5VSS5Db250YWluZXJMaXN0Qm94AwgAAC0KAAAAHwtOAAgAAwROYW1lJBZOABBDb250YWluZXJMaXN0Qm94mf0dLgkAAwAoTWljcm9zb2Z0LlNTSERlYnVnUFMuVUkuQ29udGFpbmVyTGlzdEJveB8XTwAJAAAQR290S2V5Ym9hcmRGb2N1cyQnTwAhQ29udGFpbmVyTGlzdEJveF9Hb3RLZXlib2FyZEZvY3Vzmf0fFVAACQAADlByZXZpZXdLZXlEb3duJCVQAB9Db250YWluZXJMaXN0Qm94X1ByZXZpZXdLZXlEb3dumf0kB8H/ATXF/iQHwv8BMsX+JA3P/wcwLDQsMCwwcf0kB93/ATRx/R8UUQABAAANQ29udGFpbmVyTGlzdCMoAFoCUQAfE1IABQAADEF1dG9tYXRpb25JZCQZUgATYWlkQ29udGFpbmVyTGlzdEJveJn9I7P/WwIPACPJ/1sCDQAHrv8D7P8AJBgOABJDb250YWluZXJJbnN0YW5jZXMU/iQMFQAGT25lV2F5Pf8ECB8UUwDX/QANU2VsZWN0ZWRWYWx1ZQdTAAPs/wAqEBsZU2VsZWN0ZWRDb250YWluZXJJbnN0YW5jZSsECAQDXf8AJAfB/wE2xf4kB8L/ATLF/gd5/wPs/wAqEA8NU3RhdHVzTWVzc2FnZSsjLgBbAgMAJAwVAAZPbmV3YXk9/wQILiv/HS8KAAEAKU1pY3Jvc29mdC5WaXN1YWxTdHVkaW8uSW1hZ2luZy5DcmlzcEltYWdlAwoAAC0LAAAAHwtUAAoAAwROYW1lJBFUAAtXYXJuaW5nSWNvbpn9JArZ/wRMZWZ0Pf8kCMf/AjE2pP4kCNH/AjE2pP4kDMj/BkNlbnRlcj3/JAzQ/wZDZW50ZXI9/yQNz/8HNCw0LDAsMHH9HTILAAIALE1pY3Jvc29mdC5WaXN1YWxTdHVkaW8uSW1hZ2luZy5Lbm93bk1vbmlrZXJzHxRVAAsAAA1TdGF0dXNXYXJuaW5nHw5WAAoAAAdNb25pa2VyI1YAWgJVAAd5/wPs/wAqEA8NU3RhdHVzSXNFcnJvcisjLgBbAgIAJAwVAAZPbmVXYXk9/wQIBAMHAAAtDAAAACQTTQANU3RhdHVzTWVzc2FnZZn9JAvZ/wVSaWdodD3/JBaP/xBXcmFwV2l0aE92ZXJmbG93Pf8kDs//CDYsMTIsOSw2cf0Hkv8D7P8AKhAPDVN0YXR1c01lc3NhZ2UrBAgEBANB/QAkB8H/ATfF/iQHwv8BMsX+JA7P/wgwLDEyLDAsMHH9JAvQ/wVSaWdodD3/JAzI/wZCb3R0b209/x8LVwBB/QAEUm93cyQHVwABMcX+Hw5YAEH9AAdDb2x1bW5zJAdYAAEyxf4uK/8Dyf8ALQ0AAAAkECYACk9rYXlCdXR0b26Z/RkRDXVpZE9rYXlCdXR0b27+/yQIzP8CMjOk/iQIy/8CNzWk/h8QWQDJ/wAJSXNEZWZhdWx0BgZZAC4AAQf5/wPs/wAqEAsJT0tDb21tYW5kKwQIB/j/A+z/ACQbPgAVQ29udGFpbmVyUGlja2VyRGlhbG9nmf0ECAfy/wPs/wAqEBEPT0tDb21tYW5kLkxhYmVsKwQIBAPJ/wAtDgAAACQSJgAMQ2FuY2VsQnV0dG9umf0ZEw91aWRDYW5jZWxCdXR0b27+/yQNz/8HNiwwLDAsMHH9JAjM/wIyM6T+JAjL/wI3NaT+Hw9aAMn/AAhJc0NhbmNlbAYGWgAuAAEH+f8D7P8AKhAPDUNhbmNlbENvbW1hbmQrBAgH+P8D7P8AJBs+ABVDb250YWluZXJQaWNrZXJEaWFsb2eZ/QQIB/L/A+z/ACoQFRNDYW5jZWxDb21tYW5kLkxhYmVsKwQIBAQEBAILAAEAAAD/////AQAAAAAAAAAEAQAAAA5TeXN0ZW0uQm9vbGVhbgEAAAAHbV92YWx1ZQABAAsAAQAAAP////8BAAAAAAAAAAQBAAAADlN5c3RlbS5Cb29sZWFuAQAAAAdtX3ZhbHVlAAEACw==]]></Val>
+      </Bin>
+      <Disp Edtr="External" LocTbl="false" />
+    </Item>
+  </Item>
+  <Item ItemId=";Version" ItemType="0" PsrId="211" Leaf="false">
+    <Disp Icon="Ver" Disp="true" LocTbl="false" Path=" \ ;Version \ 8 \ 0" />
+    <Item ItemId=";CompanyName" ItemType="0" PsrId="211" Leaf="true">
+      <Str Cat="Text">
+        <Val><![CDATA[Microsoft Corporation]]></Val>
+      </Str>
+      <Disp Icon="Str" />
+    </Item>
+    <Item ItemId=";FileDescription" ItemType="0" PsrId="211" Leaf="true">
+      <Str Cat="Text">
+        <Val><![CDATA[SSHDebugPS]]></Val>
+        <Tgt Cat="Text" Stat="Loc" Orig="New">
+          <Val><![CDATA[SSHDebugPS]]></Val>
+        </Tgt>
+      </Str>
+      <Disp Icon="Str" />
+    </Item>
+    <Item ItemId=";InternalName" ItemType="0" PsrId="211" Leaf="true">
+      <Str Cat="Text" DevLk="true">
+        <Val><![CDATA[Microsoft.SSHDebugPS.dll]]></Val>
+      </Str>
+      <Disp Icon="Str" />
+    </Item>
+    <Item ItemId=";LegalCopyright" ItemType="0" PsrId="211" Leaf="true">
+      <Str Cat="Text">
+        <Val><![CDATA[© Microsoft Corporation. All rights reserved.]]></Val>
+        <Tgt Cat="Text" Stat="Loc" Orig="New">
+          <Val><![CDATA[© Microsoft Corporation. All rights reserved.]]></Val>
+        </Tgt>
+      </Str>
+      <Disp Icon="Str" />
+    </Item>
+    <Item ItemId=";OriginalFilename" ItemType="0" PsrId="211" Leaf="true">
+      <Str Cat="Text" DevLk="true">
+        <Val><![CDATA[Microsoft.SSHDebugPS.dll]]></Val>
+      </Str>
+      <Disp Icon="Str" />
+    </Item>
+    <Item ItemId=";ProductName" ItemType="0" PsrId="211" Leaf="true">
+      <Str Cat="Text">
+        <Val><![CDATA[Microsoft ® Visual Studio ®]]></Val>
+        <Tgt Cat="Text" Stat="Loc" Orig="New">
+          <Val><![CDATA[Microsoft ® Visual Studio ®]]></Val>
+        </Tgt>
+      </Str>
+      <Disp Icon="Str" />
+    </Item>
+  </Item>
+  <Item ItemId=";Version" ItemType="8" PsrId="211" Leaf="true">
+    <Disp Icon="Expand" Expand="true" Disp="true" LocTbl="false" />
+  </Item>
+</LCX>

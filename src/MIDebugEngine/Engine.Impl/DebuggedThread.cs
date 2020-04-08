@@ -243,7 +243,8 @@ namespace Microsoft.MIDebugEngine
 
                     if (bNew)
                     {
-                        _callback.OnThreadStart(thread);
+                        NewThreads.Add(thread);
+                        SendThreadEvents(null, null);
                     }
                 }
             }
@@ -312,7 +313,19 @@ namespace Microsoft.MIDebugEngine
         private ThreadContext CreateContext(TupleValue frame)
         {
             ulong? pc = frame.TryFindAddr("addr");
-            MITextPosition textPosition = MITextPosition.TryParse(this._debugger, frame);
+
+            // don't report source line info for modules marked as IgnoreSource
+            bool ignoreSource = false;
+            if (pc != null)
+            {
+                var module = _debugger.FindModule(pc.Value);
+                if (module != null && module.IgnoreSource)
+                {
+                    ignoreSource = true;
+                }
+            }
+            MITextPosition textPosition = !ignoreSource ? MITextPosition.TryParse(this._debugger, frame) : null;
+
             string func = frame.TryFindString("func");
             uint level = frame.FindUint("level");
             string from = frame.TryFindString("from");
@@ -466,33 +479,43 @@ namespace Microsoft.MIDebugEngine
 
         internal void SendThreadEvents(object sender, EventArgs e)
         {
-            List<DebuggedThread> deadThreads;
-            List<DebuggedThread> newThreads;
-            lock (_threadList)
+            if (_debugger.Engine.ProgramCreateEventSent)
             {
-                deadThreads = _deadThreads;
-                _deadThreads = null;
-                newThreads = _newThreads;
-                _newThreads = null;
-            }
-            if (newThreads != null)
-            {
-                foreach (var newt in newThreads)
+                List<DebuggedThread> deadThreads;
+                List<DebuggedThread> newThreads;
+                lock (_threadList)
                 {
-                    if (!newt.ChildThread)
+                    deadThreads = _deadThreads;
+                    _deadThreads = null;
+                    newThreads = _newThreads;
+                    _newThreads = null;
+                }
+                if (newThreads != null)
+                {
+                    if (newThreads.Count == _threadList.Count)
                     {
-                        _callback.OnThreadStart(newt);
+                        // These are the first threads. Send a processInfoUpdateEvent too.
+                        AD7ProcessInfoUpdatedEvent.Send(_debugger.Engine, _debugger.LaunchOptions.ExePath, (uint)_debugger.PidByInferior("i1"));
+                    }
+                    foreach (var newt in newThreads)
+                    {
+                        // If we are child process debugging, check and see if its a child thread
+                        if (!(_debugger.IsChildProcessDebugging && newt.ChildThread))
+                        {
+                            _callback.OnThreadStart(newt);
+                        }
                     }
                 }
-            }
-            if (deadThreads != null)
-            {
-                foreach (var dead in deadThreads)
+                if (deadThreads != null)
                 {
-                    if (!dead.ChildThread)
+                    foreach (var dead in deadThreads)
                     {
-                        // Send the destroy event outside the lock
-                        _callback.OnThreadExit(dead, 0);
+                        // If we are child process debugging, check and see if its a child thread
+                        if (!(_debugger.IsChildProcessDebugging && dead.ChildThread))
+                        {
+                            // Send the destroy event outside the lock
+                            _callback.OnThreadExit(dead, 0);
+                        }
                     }
                 }
             }

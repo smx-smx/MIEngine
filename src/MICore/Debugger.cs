@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+﻿    // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
@@ -12,6 +12,7 @@ using System.Linq;
 using Microsoft.Win32.SafeHandles;
 using Microsoft.DebugEngineHost;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 
 namespace MICore
 {
@@ -25,6 +26,9 @@ namespace MICore
 
     public class Debugger : ITransportCallback
     {
+        private const string Event_UnsupportedWindowsGdb = "VS/Diagnostics/Debugger/MIEngine/UnsupportedWindowsGdb";
+        private const string Property_GdbVersion = "VS.Diagnostics.Debugger.MIEngine.GdbVersion";
+
         public event EventHandler BreakModeEvent;
         public event EventHandler RunModeEvent;
         public event EventHandler ProcessExitEvent;
@@ -239,7 +243,7 @@ namespace MICore
                         // When using signals to stop the process, do not kick off another break attempt. The debug break injection and
                         // signal based models are reliable so no retries are needed. Cygwin can't currently async-break reliably, so
                         // use retries there.
-                        if (!IsLocalGdb() && !this.IsCygwin)
+                        if (!IsLocalGdbTarget() && !this.IsCygwin)
                         {
                             _breakTimer = new Timer(RetryBreak, null, BREAK_DELTA, BREAK_DELTA);
                         }
@@ -564,6 +568,7 @@ namespace MICore
             Async,
             Stop
         }
+
         protected BreakRequest _requestingRealAsyncBreak = BreakRequest.None;
         public Task CmdBreak(BreakRequest request)
         {
@@ -574,31 +579,31 @@ namespace MICore
             return CmdBreakInternal();
         }
 
-        internal bool IsLocalGdb()
+        protected bool IsLocalLaunchUsingServer()
         {
-            return (this.MICommandFactory.Mode == MIMode.Gdb &&
-               this._launchOptions is LocalLaunchOptions &&
-               String.IsNullOrEmpty(((LocalLaunchOptions)this._launchOptions).MIDebuggerServerAddress));
-
+            return (_launchOptions is LocalLaunchOptions localLaunchOptions &&
+                (!String.IsNullOrWhiteSpace(localLaunchOptions.MIDebuggerServerAddress) ||
+                 !String.IsNullOrWhiteSpace(localLaunchOptions.DebugServer)));
         }
 
-        private bool IsRemoteGdb()
+        internal bool IsLocalGdbTarget()
         {
-            return this.MICommandFactory.Mode == MIMode.Gdb &&
-               (this._launchOptions is PipeLaunchOptions ||
-               (this._launchOptions is LocalLaunchOptions
-                    && !String.IsNullOrEmpty(((LocalLaunchOptions)this._launchOptions).MIDebuggerServerAddress)));
+            return (MICommandFactory.Mode == MIMode.Gdb &&
+                _launchOptions is LocalLaunchOptions && !IsLocalLaunchUsingServer());
+        }
+
+        private bool IsRemoteGdbTarget()
+        {
+            return MICommandFactory.Mode == MIMode.Gdb &&
+               (_launchOptions is PipeLaunchOptions || _launchOptions is UnixShellPortLaunchOptions ||
+                IsLocalLaunchUsingServer());
         }
 
         protected bool IsCoreDump
         {
             get
             {
-                LocalLaunchOptions localOptions = this._launchOptions as LocalLaunchOptions;
-                if (null == localOptions)
-                    return false;
-
-                return localOptions.IsCoreDump;
+                return this._launchOptions.IsCoreDump;
             }
         }
 
@@ -614,7 +619,7 @@ namespace MICore
                     // the normal path of sending an internal async break so we can exit doesn't work.
                     // Therefore, we will call TerminateProcess on the debuggee with the exit code of 0
                     // to terminate debugging. 
-                    if (this.IsLocalGdb() &&
+                    if (this.IsLocalGdbTarget() &&
                         (this.IsCygwin || this.IsMinGW) &&
                         _debuggeePids.Count > 0)
                     {
@@ -704,7 +709,7 @@ namespace MICore
 
             // Note that interrupt doesn't work on OS X with gdb:
             // https://sourceware.org/bugzilla/show_bug.cgi?id=20035
-            if (IsLocalGdb())
+            if (IsLocalGdbTarget())
             {
                 bool useSignal = false;
                 int debuggeePid = 0;
@@ -729,10 +734,18 @@ namespace MICore
                     }
                 }
             }
-            else if (IsRemoteGdb() && _transport is PipeTransport)
+            else if (IsRemoteGdbTarget() && _transport is PipeTransport)
             {
                 int pid = PidByInferior("i1");
                 if (pid != 0 && ((PipeTransport)_transport).Interrupt(pid))
+                {
+                    return Task.FromResult<Results>(new Results(ResultClass.done));
+                }
+            }
+            else if (IsRemoteGdbTarget() && _transport is UnixShellPortTransport)
+            {
+                int pid = PidByInferior("i1");
+                if (pid != 0 && ((UnixShellPortTransport)_transport).Interrupt(pid))
                 {
                     return Task.FromResult<Results>(new Results(ResultClass.done));
                 }
@@ -781,11 +794,20 @@ namespace MICore
             return outStr.ToString();
         }
 
-        public async Task<string> ConsoleCmdAsync(string cmd, bool ignoreFailures = false)
+        /// <summary>
+        /// Sends 'cmd' to the debuggee as a console command.
+        /// </summary>
+        /// <param name="cmd">The command to send.</param>
+        /// <param name="allowWhileRunning">Set to 'true' if the process can be running while the command is executed.</param>
+        /// <param name="ignoreFailures">Ignore any failure that occur when executing the command.</param>
+        /// <returns></returns>
+        public async Task<string> ConsoleCmdAsync(string cmd, bool allowWhileRunning, bool ignoreFailures = false)
         {
-            if (this.ProcessState != ProcessState.Stopped && this.ProcessState != ProcessState.NotConnected)
+            if (!(this.ProcessState == ProcessState.Running && allowWhileRunning) &&
+                this.ProcessState != ProcessState.Stopped &&
+                this.ProcessState != ProcessState.NotConnected)
             {
-                if (this.ProcessState == MICore.ProcessState.Exited)
+                if (this.ProcessState == ProcessState.Exited)
                 {
                     throw new DebuggerDisposedException(GetTargetProcessExitedReason());
                 }
@@ -798,9 +820,11 @@ namespace MICore
             using (ExclusiveLockToken lockToken = await _commandLock.AquireExclusive())
             {
                 // check again now that we have the lock
-                if (this.ProcessState != MICore.ProcessState.Stopped && this.ProcessState != ProcessState.NotConnected)
+                if (!(this.ProcessState == ProcessState.Running && allowWhileRunning) &&
+                    this.ProcessState != ProcessState.Stopped &&
+                    this.ProcessState != ProcessState.NotConnected)
                 {
-                    if (this.ProcessState == MICore.ProcessState.Exited)
+                    if (this.ProcessState == ProcessState.Exited)
                     {
                         throw new DebuggerDisposedException(GetTargetProcessExitedReason());
                     }
@@ -943,7 +967,25 @@ namespace MICore
                     {
                         if (_consoleDebuggerInitializeCompletionSource != null)
                         {
-                            MIDebuggerInitializeFailedException exception = new MIDebuggerInitializeFailedException(this.MICommandFactory.Name, _initialErrors.ToList().AsReadOnly(), _initializationLog.ToList().AsReadOnly());
+                            MIDebuggerInitializeFailedException exception;
+                            string version = GdbVersionFromLog();
+
+                            // We can't use IsMinGW or IsCygwin because we never connected to the debugger
+                            bool isMinGWOrCygwin = _launchOptions is LocalLaunchOptions &&
+                                    PlatformUtilities.IsWindows() &&
+                                    this.MICommandFactory.Mode == MIMode.Gdb;
+                            if (isMinGWOrCygwin && version != null && IsUnsupportedWindowsGdbVersion(version))
+                            {
+                                exception = new MIDebuggerInitializeFailedUnsupportedGdbException(
+                                    this.MICommandFactory.Name, _initialErrors.ToList().AsReadOnly(), _initializationLog.ToList().AsReadOnly(), version);
+                                SendUnsupportedWindowsGdbEvent(version);
+                            }
+                            else
+                            {
+                                exception = new MIDebuggerInitializeFailedException(
+                                    this.MICommandFactory.Name, _initialErrors.ToList().AsReadOnly(), _initializationLog.ToList().AsReadOnly());
+                            }
+
                             _initialErrors = null;
                             _initializationLog = null;
 
@@ -976,6 +1018,33 @@ namespace MICore
                     }
                 }
             }
+        }
+
+        string GdbVersionFromLog()
+        {
+            foreach (string line in _initializationLog)
+            {
+                // Second set of parenthesis looks for a Cygwin-specific version number
+                // Cygwin example: GNU gdb (GDB) (Cygwin 7.11.1-2) 7.11.1
+                // MinGW example:  GNU gdb (GDB) 8.0.1
+                Match match = Regex.Match(line, "GNU gdb \\(GDB\\) (?:\\(Cygwin (\\d+[\\d\\.-]*)\\) )?(\\d+[\\d\\.-]*)");
+                if (match.Success)
+                {
+                    return match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value;
+                }
+            }
+
+            return null;
+        }
+
+        bool IsUnsupportedWindowsGdbVersion(string version)
+        {
+            return new string[] { "7.12", "7.12-1", "7.12-2", "7.12-3", "7.12.1", "7.12.1-1" }.Contains(version);
+        }
+
+        void SendUnsupportedWindowsGdbEvent(string version)
+        {
+            HostTelemetry.SendEvent(Event_UnsupportedWindowsGdb, new KeyValuePair<string, object>(Property_GdbVersion, version));
         }
 
         void ITransportCallback.AppendToInitializationLog(string line)
@@ -1071,7 +1140,30 @@ namespace MICore
                     string miError = null;
                     if (results.ResultClass == ResultClass.error)
                     {
-                        miError = results.FindString("msg");
+                        // Fixes: https://github.com/microsoft/vscode-cpptools/issues/2492
+                        try
+                        {
+                            miError = results.FindString("msg");
+                        }
+                        catch (MIResultFormatException)
+                        {
+                            try
+                            {
+                                // TODO: Remove after update to mainline lldb-mi
+                                // lldb-mi has certain instances (such as the -exec-* commands) that calls the message
+                                // "message" instead of "msg"
+                                miError = results.FindString("message");
+                            }
+                            catch (MIResultFormatException)
+                            {
+                                // make the error a generic '<Unknown Error>' message
+                                miError = MICoreResources.Error_UnknownError;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        miError = String.Format(CultureInfo.CurrentCulture, MICoreResources.Error_UnexpectedResultClass, Enum.GetName(typeof(ResultClass), _expectedResultClass), Enum.GetName(typeof(ResultClass), results.ResultClass));
                     }
 
                     _completionSource.SetException(new UnexpectedMIResultException(commandFactory.Name, this.Command, miError));
@@ -1109,6 +1201,7 @@ namespace MICore
 
         public void ProcessStdOutLine(string line)
         {
+            string originalLine = line;
             if (line.Length == 0)
             {
                 return;
@@ -1149,7 +1242,7 @@ namespace MICore
                         if (waitingOperation != null)
                         {
                             Results results = _miResults.ParseCommandOutput(noprefix);
-                            Logger.WriteLine(id + ": elapsed time " + (int)(DateTime.Now - waitingOperation.StartTime).TotalMilliseconds);
+                            Logger.WriteLine(id.ToString(CultureInfo.InvariantCulture) + ": elapsed time " + ((int)(DateTime.Now - waitingOperation.StartTime).TotalMilliseconds).ToString(CultureInfo.InvariantCulture));
                             waitingOperation.OnComplete(results, this.MICommandFactory);
                             return;
                         }
@@ -1191,7 +1284,8 @@ namespace MICore
                         OnNotificationOutput(noprefix);
                         break;
                     default:
-                        OnDebuggeeOutput(line + '\n');
+                        // Token is not prepended, use original line.
+                        OnDebuggeeOutput(originalLine + '\n');
                         break;
                 }
             }
@@ -1276,7 +1370,7 @@ namespace MICore
             {
                 if (PlatformUtilities.IsWindows() &&
                     this.LaunchOptions is LocalLaunchOptions &&
-                    ((LocalLaunchOptions)this.LaunchOptions).ProcessId != 0 &&
+                    ((LocalLaunchOptions)this.LaunchOptions).ProcessId.HasValue &&
                     this.MICommandFactory.Mode == MIMode.Gdb &&
                     !this.IsCygwin
                     )

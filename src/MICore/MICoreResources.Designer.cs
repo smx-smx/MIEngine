@@ -10,7 +10,6 @@
 
 namespace MICore {
     using System;
-    using System.Reflection;
     
     
     /// <summary>
@@ -20,7 +19,7 @@ namespace MICore {
     // class via a tool like ResGen or Visual Studio.
     // To add or remove a member, edit your .ResX file then rerun ResGen
     // with the /str option, or rebuild your VS project.
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "15.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "16.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     public class MICoreResources {
@@ -40,7 +39,7 @@ namespace MICore {
         public static global::System.Resources.ResourceManager ResourceManager {
             get {
                 if (object.ReferenceEquals(resourceMan, null)) {
-                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("MICore.MICoreResources", typeof(MICoreResources).GetTypeInfo().Assembly);
+                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("MICore.MICoreResources", typeof(MICoreResources).Assembly);
                     resourceMan = temp;
                 }
                 return resourceMan;
@@ -76,6 +75,15 @@ namespace MICore {
         public static string Error_CannotSpecifyBoth {
             get {
                 return ResourceManager.GetString("Error_CannotSpecifyBoth", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Command aborted. See the output window for additional details..
+        /// </summary>
+        public static string Error_CommandAborted {
+            get {
+                return ResourceManager.GetString("Error_CommandAborted", resourceCulture);
             }
         }
         
@@ -241,6 +249,15 @@ namespace MICore {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Invalid SymbolInfo, cannot specify a list of solibs when &quot;WaitDynamicLoad&quot; is false..
+        /// </summary>
+        public static string Error_InvalidSymbolInfo {
+            get {
+                return ResourceManager.GetString("Error_InvalidSymbolInfo", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Device App Launcher {0} could not be found..
         /// </summary>
         public static string Error_LauncherNotFound {
@@ -322,6 +339,15 @@ namespace MICore {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Error: Option {0} is not supported by {1}..
+        /// </summary>
+        public static string Error_OptionNotSupported {
+            get {
+                return ResourceManager.GetString("Error_OptionNotSupported", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to PipeProgram &apos;{0}&apos; could not be found..
         /// </summary>
         public static string Error_PipeProgramNotFound {
@@ -376,6 +402,24 @@ namespace MICore {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to &apos;RunInTerminalRequest&apos; failed. &apos;{0}&apos;..
+        /// </summary>
+        public static string Error_RunInTerminalFailure {
+            get {
+                return ResourceManager.GetString("Error_RunInTerminalFailure", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Unable to send &apos;RunInTerminalRequest&apos; to Visual Studio Code..
+        /// </summary>
+        public static string Error_RunInTerminalUnavailable {
+            get {
+                return ResourceManager.GetString("Error_RunInTerminalUnavailable", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to The format of source file map entry &apos;{0}&apos; is incorrect.  .
         /// </summary>
         public static string Error_SourceFileMapFormat {
@@ -399,6 +443,24 @@ namespace MICore {
         public static string Error_TargetProcessExited {
             get {
                 return ResourceManager.GetString("Error_TargetProcessExited", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Timeout waiting for connection..
+        /// </summary>
+        public static string Error_TimeoutWaitingForConnection {
+            get {
+                return ResourceManager.GetString("Error_TimeoutWaitingForConnection", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Unable to establish a connection to the launcher..
+        /// </summary>
+        public static string Error_UnableToEstablishConnectionToLauncher {
+            get {
+                return ResourceManager.GetString("Error_UnableToEstablishConnectionToLauncher", resourceCulture);
             }
         }
         
@@ -430,6 +492,33 @@ namespace MICore {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Unexpected ResultClass from MI Debugger. Expected &apos;{0}&apos; but received &apos;{1}&apos;..
+        /// </summary>
+        public static string Error_UnexpectedResultClass {
+            get {
+                return ResourceManager.GetString("Error_UnexpectedResultClass", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Unrecognized json customLauncher element &apos;{0}&apos;..
+        /// </summary>
+        public static string Error_UnknownCustomLauncher {
+            get {
+                return ResourceManager.GetString("Error_UnknownCustomLauncher", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to &lt;Unknown Error&gt;.
+        /// </summary>
+        public static string Error_UnknownError {
+            get {
+                return ResourceManager.GetString("Error_UnknownError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Internal error: unable to serialize launch options..
         /// </summary>
         public static string Error_UnknownLaunchOptions {
@@ -457,6 +546,17 @@ namespace MICore {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to GDB version {0} is not supported on Windows. Consider upgrading.
+        ///
+        ///{1}.
+        /// </summary>
+        public static string Error_UnsupportedWindowsGdb {
+            get {
+                return ResourceManager.GetString("Error_UnsupportedWindowsGdb", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Installing debugger on the remote machine..
         /// </summary>
         public static string Info_InstallingDebuggerOnRemote {
@@ -480,6 +580,15 @@ namespace MICore {
         public static string Info_StartingUnixCommand {
             get {
                 return ResourceManager.GetString("Info_StartingUnixCommand", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Debugger was unable to continue the process..
+        /// </summary>
+        public static string Info_UnableToContinue {
+            get {
+                return ResourceManager.GetString("Info_UnableToContinue", resourceCulture);
             }
         }
         
