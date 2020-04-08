@@ -12,7 +12,7 @@ using MICore;
 
 namespace Microsoft.MIDebugEngine
 {
-    internal class DisasmInstruction
+    public class DisasmInstruction
     {
         public ulong Addr;
         public string AddressString;
@@ -114,7 +114,7 @@ namespace Microsoft.MIDebugEngine
             _instructions = ins;
         }
     }
-    internal class Disassembly
+    public class Disassembly
     {
         private const int cacheSize = 10;   // number of cached blocks to keep
         private SortedList<ulong, DisassemblyBlock> _disassemlyCache;

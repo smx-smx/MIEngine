@@ -16,7 +16,7 @@ using Microsoft.DebugEngineHost;
 
 namespace Microsoft.MIDebugEngine
 {
-    internal class ExceptionManager
+    public class ExceptionManager
     {
         // ***************** DESIGN NOTES *************************
         // At least at the time of the creation (VS 2015 RTM), the exception settings dialog pushes

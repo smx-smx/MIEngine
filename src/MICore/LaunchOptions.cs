@@ -930,6 +930,7 @@ namespace MICore
         }
 
         public bool NoDebug { get; private set; } = false;
+        public bool RequireSymbols { get; set; } = false;
 
         private Xml.LaunchOptions.BaseLaunchOptions _baseOptions;
         /// <summary>
@@ -1014,6 +1015,7 @@ namespace MICore
                 _coreDumpPath = value;
             }
         }
+
         public bool IsCoreDump
         {
             get { return !String.IsNullOrEmpty(this.CoreDumpPath); }

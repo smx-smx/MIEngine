@@ -12,7 +12,7 @@ using MICore;
 namespace Microsoft.MIDebugEngine
 {
     // This class manages breakpoints for the engine. 
-    internal class BreakpointManager
+    public class BreakpointManager
     {
         private AD7Engine _engine;
         private System.Collections.Generic.List<AD7PendingBreakpoint> _pendingBreakpoints;

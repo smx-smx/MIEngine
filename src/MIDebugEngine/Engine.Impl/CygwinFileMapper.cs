@@ -11,7 +11,7 @@ using MICore;
 
 namespace Microsoft.MIDebugEngine
 {
-    internal class CygwinFilePathMapper
+    public class CygwinFilePathMapper
     {
         private DebuggedProcess _debuggedProcess;
         private Dictionary<string, string> _cygwinToWindows;

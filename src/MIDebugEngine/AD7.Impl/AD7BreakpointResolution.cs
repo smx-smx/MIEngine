@@ -10,7 +10,7 @@ using Microsoft.DebugEngineHost;
 namespace Microsoft.MIDebugEngine
 {
     // This class represents the information that describes a bound breakpoint.
-    internal class AD7BreakpointResolution : IDebugBreakpointResolution2
+    public class AD7BreakpointResolution : IDebugBreakpointResolution2
     {
         private AD7Engine _engine;
         internal ulong Addr { get; set; }

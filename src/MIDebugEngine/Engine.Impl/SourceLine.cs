@@ -42,7 +42,7 @@ namespace Microsoft.MIDebugEngine
         public bool EndOfFunction { get { return Line == 0; } }
     }
 
-    internal class SourceLineCache
+    public class SourceLineCache
     {
         private Dictionary<string, SourceLineMap> _mapFileToLinenums;
         private DebuggedProcess _process;

@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace Microsoft.MIDebugEngine
 {
-    internal class MITextPosition
+    public class MITextPosition
     {
         public string FileName { get; private set; }
         public TEXT_POSITION BeginPosition { get; private set; }

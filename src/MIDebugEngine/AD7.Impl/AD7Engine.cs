@@ -142,6 +142,13 @@ namespace Microsoft.MIDebugEngine
 
         #region IDebugEngine2 Members
 
+        public void ExternalAttach(IDebugEventCallback2 evcb) {
+            _engineCallback = new EngineCallback(this, evcb);
+            Logger.CmdLogInfo.enabled = true;
+            Logger.LoadMIDebugLogger(null);
+            Logger = Logger.EnsureInitialized(null);
+        }
+
         // Attach the debug engine to a program.
         public int Attach(IDebugProgram2[] portProgramArray, IDebugProgramNode2[] programNodeArray, uint celtPrograms, IDebugEventCallback2 ad7Callback, enum_ATTACH_REASON dwReason)
         {
@@ -535,7 +542,7 @@ namespace Microsoft.MIDebugEngine
             return Constants.E_ABORT;
         }
 
-        private void StartDebugging(LaunchOptions launchOptions)
+        public void StartDebugging(LaunchOptions launchOptions)
         {
             Debug.Assert(_engineCallback != null);
             Debug.Assert(_pollThread == null);
@@ -934,6 +941,10 @@ namespace Microsoft.MIDebugEngine
 
             guidProgramId = _ad7ProgramId;
             return Constants.S_OK;
+        }
+
+        public DebuggedProcess GetDebuggedProcess() {
+            return _debuggedProcess;
         }
 
         public int Step(IDebugThread2 pThread, enum_STEPKIND kind, enum_STEPUNIT unit)

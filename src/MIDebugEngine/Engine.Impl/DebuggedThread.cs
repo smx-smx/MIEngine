@@ -31,7 +31,7 @@ namespace Microsoft.MIDebugEngine
         public bool ChildThread { get; set; }       // transient child thread, don't inform UI of this thread
     }
 
-    internal class ThreadCache
+    public class ThreadCache
     {
         private List<DebuggedThread> _threadList;
         private Dictionary<int, List<ThreadContext>> _stackFrames;
@@ -89,7 +89,7 @@ namespace Microsoft.MIDebugEngine
             debugger.RunModeEvent += SendThreadEvents;
         }
 
-        internal async Task<DebuggedThread[]> GetThreads()
+        public async Task<DebuggedThread[]> GetThreads()
         {
             bool stateChange = false;
             lock (_threadList)
@@ -108,7 +108,7 @@ namespace Microsoft.MIDebugEngine
             }
         }
 
-        internal async Task<DebuggedThread> GetThread(int id)
+        public async Task<DebuggedThread> GetThread(int id)
         {
             DebuggedThread[] threads = await GetThreads();
             foreach (var t in threads)
@@ -121,7 +121,7 @@ namespace Microsoft.MIDebugEngine
             return null;
         }
 
-        internal async Task<List<ThreadContext>> StackFrames(DebuggedThread thread)
+        public async Task<List<ThreadContext>> StackFrames(DebuggedThread thread)
         {
             lock (_threadList)
             {
@@ -152,7 +152,7 @@ namespace Microsoft.MIDebugEngine
             }
         }
 
-        internal async Task<ThreadContext> GetThreadContext(DebuggedThread thread)
+        public async Task<ThreadContext> GetThreadContext(DebuggedThread thread)
         {
             lock (_threadList)
             {
@@ -290,7 +290,7 @@ namespace Microsoft.MIDebugEngine
             return _threadGroups.ContainsKey(c_defaultGroupId) && _threadGroups[c_defaultGroupId].Contains(tid);
         }
 
-        private async Task<List<ThreadContext>> WalkStack(DebuggedThread thread)
+        public async Task<List<ThreadContext>> WalkStack(DebuggedThread thread)
         {
             List<ThreadContext> stack = null;
             TupleValue[] frameinfo = await _debugger.MICommandFactory.StackListFrames(thread.Id, 0, 1000);

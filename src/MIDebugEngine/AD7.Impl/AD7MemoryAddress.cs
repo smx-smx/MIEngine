@@ -13,7 +13,7 @@ namespace Microsoft.MIDebugEngine
     // IDebugMemoryContext2 represents a position in the address space of the machine running the program being debugged.
     // IDebugCodeContext2 represents the starting position of a code instruction. 
     // For most run-time architectures today, a code context can be thought of as an address in a program's execution stream.
-    internal class AD7MemoryAddress : IDebugCodeContext2
+    public class AD7MemoryAddress : IDebugCodeContext2
     {
         private readonly AD7Engine _engine;
         private readonly ulong _address;

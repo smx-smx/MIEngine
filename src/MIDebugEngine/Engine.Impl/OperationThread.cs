@@ -22,7 +22,7 @@ namespace Microsoft.MIDebugEngine
     /// <summary>
     /// Worker thread used to process MI Debugger output and used to process AD7 commands
     /// </summary>
-    internal class WorkerThread : IDisposable
+    public class WorkerThread : IDisposable
     {
         private readonly AutoResetEvent _opSet;
         private readonly ManualResetEvent _runningOpCompleteEvent; // fired when either m_syncOp finishes, or the kick off of m_async

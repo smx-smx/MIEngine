@@ -13,7 +13,7 @@ using Microsoft.DebugEngineHost;
 
 namespace Microsoft.MIDebugEngine
 {
-    internal class EngineCallback : ISampleEngineCallback, MICore.IDeviceAppLauncherEventCallback
+    public class EngineCallback : ISampleEngineCallback, MICore.IDeviceAppLauncherEventCallback
     {
         private readonly IDebugEventCallback2 _eventCallback;
         private readonly AD7Engine _engine;

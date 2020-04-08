@@ -361,7 +361,7 @@ namespace Microsoft.MIDebugEngine
         }
     }
 
-    internal class BoundBreakpoint
+    public class BoundBreakpoint
     {
         private PendingBreakpoint _parent;
 

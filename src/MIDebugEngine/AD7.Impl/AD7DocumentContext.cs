@@ -11,7 +11,7 @@ using MICore;
 namespace Microsoft.MIDebugEngine
 {
     // This class represents a document context to the debugger. A document context represents a location within a source file. 
-    internal class AD7DocumentContext : IDebugDocumentContext2, IDebugDocumentContext150
+    public class AD7DocumentContext : IDebugDocumentContext2, IDebugDocumentContext150
     {
         private readonly MITextPosition _textPosition;
         private AD7MemoryAddress _codeContext;

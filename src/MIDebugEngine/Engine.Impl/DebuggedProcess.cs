@@ -19,7 +19,7 @@ using Logger = MICore.Logger;
 
 namespace Microsoft.MIDebugEngine
 {
-    internal class DebuggedProcess : MICore.Debugger
+    public class DebuggedProcess : MICore.Debugger
     {
         public AD_PROCESS_ID Id { get; private set; }
         public AD7Engine Engine { get; private set; }
@@ -42,7 +42,7 @@ namespace Microsoft.MIDebugEngine
         private List<string> _libraryLoaded;   // unprocessed library loaded messages
         private uint _loadOrder;
         private HostWaitDialog _waitDialog;
-        public readonly Natvis.Natvis Natvis;
+        public /*readonly*/ Natvis.Natvis Natvis;
         private ReadOnlyCollection<RegisterDescription> _registers;
         private ReadOnlyCollection<RegisterGroup> _registerGroups;
         private readonly EngineTelemetry _engineTelemetry = new EngineTelemetry();
@@ -52,8 +52,11 @@ namespace Microsoft.MIDebugEngine
         private bool _deleteEntryPointBreakpoint;
         private string _entryPointBreakpoint = String.Empty;
 
+        private LaunchOptions _launchOptions;
+
         public DebuggedProcess(bool bLaunched, LaunchOptions launchOptions, ISampleEngineCallback callback, WorkerThread worker, BreakpointManager bpman, AD7Engine engine, HostConfigurationStore configStore, HostWaitLoop waitLoop = null) : base(launchOptions, engine.Logger)
         {
+            _launchOptions = LaunchOptions;
             uint processExitCode = 0;
             _pendingMessages = new StringBuilder(400);
             _worker = worker;
@@ -808,6 +811,9 @@ namespace Microsoft.MIDebugEngine
 
             Action<string> failureHandler = (string miError) =>
             {
+                if (miError.Contains("error reading symbols") && !_launchOptions.RequireSymbols)
+                return;
+
                 string message = string.Format(CultureInfo.CurrentUICulture, ResourceStrings.Error_ExePathInvalid, _launchOptions.ExePath, MICommandFactory.Name, miError);
                 throw new LaunchErrorException(message);
             };

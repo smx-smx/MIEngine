@@ -15,7 +15,7 @@ using System.Globalization;
 
 namespace Microsoft.MIDebugEngine
 {
-    internal interface IVariableInformation : IDisposable
+    public interface IVariableInformation : IDisposable
     {
         string Name { get; }
         string Value { get; }
@@ -42,7 +42,7 @@ namespace Microsoft.MIDebugEngine
         bool IsPreformatted { get; set; }
     }
 
-    internal class SimpleVariableInformation
+    public class SimpleVariableInformation
     {
         public string Name { get; private set; }
         public string Value { get; private set; }
@@ -65,14 +65,14 @@ namespace Microsoft.MIDebugEngine
         }
     }
 
-    internal class ArgumentList : Tuple<int, List<SimpleVariableInformation>>
+    public class ArgumentList : Tuple<int, List<SimpleVariableInformation>>
     {
         public ArgumentList(int level, List<SimpleVariableInformation> args)
             : base(level, args)
         { }
     }
 
-    internal class VariableInformation : IVariableInformation
+    public class VariableInformation : IVariableInformation
     {
         public string Name { get; private set; }
         public string Value { get; private set; }

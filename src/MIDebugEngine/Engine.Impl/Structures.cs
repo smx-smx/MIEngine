@@ -10,7 +10,7 @@ using MICore;
 
 namespace Microsoft.MIDebugEngine
 {
-    internal class ThreadContext
+    public class ThreadContext
     {
         public ThreadContext(ulong? addr, MITextPosition textPosition, string function, uint level, string from)
         {
