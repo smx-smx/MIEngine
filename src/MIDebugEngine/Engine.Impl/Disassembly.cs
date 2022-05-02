@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using MICore;
+using System.Globalization;
 
 namespace Microsoft.MIDebugEngine
 {
@@ -322,9 +323,9 @@ namespace Microsoft.MIDebugEngine
         {
             if (file.IndexOf(' ') >= 0) // only needs escaping if filename contains a space
             {
-                file = process.EscapeSymbolPath(file);
+                file = process.EnsureProperPathSeparators(file);
             }
-            string cmd = "-data-disassemble -f " + file + " -l " + line.ToString() + " -n " + dwInstructions.ToString() + " -- 1";
+            string cmd = "-data-disassemble -f " + file + " -l " + line.ToString(CultureInfo.InvariantCulture) + " -n " + dwInstructions.ToString(CultureInfo.InvariantCulture) + " -- 1";
             Results results = await process.CmdAsync(cmd, ResultClass.None);
             if (results.ResultClass != ResultClass.done)
             {

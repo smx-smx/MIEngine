@@ -403,24 +403,24 @@ namespace Microsoft.MIDebugEngine
     {
         public const string IID = "51A94113-8788-4A54-AE15-08B74FF922D0";
 
-        public AD7ExceptionEvent(string name, string description, uint code, Guid? exceptionCategory, ExceptionBreakpointState state)
+        public AD7ExceptionEvent(string name, string description, uint code, Guid? exceptionCategory, ExceptionBreakpointStates state)
         {
             _name = name;
             _code = code;
-            _description = description ?? name;
+            _description = string.IsNullOrEmpty(description) ? name : description;
             _category = exceptionCategory ?? EngineConstants.EngineId;
 
             switch (state)
             {
-                case ExceptionBreakpointState.None:
+                case ExceptionBreakpointStates.None:
                     _state = enum_EXCEPTION_STATE.EXCEPTION_STOP_SECOND_CHANCE;
                     break;
 
-                case ExceptionBreakpointState.BreakThrown:
+                case ExceptionBreakpointStates.BreakThrown:
                     _state = enum_EXCEPTION_STATE.EXCEPTION_STOP_FIRST_CHANCE | enum_EXCEPTION_STATE.EXCEPTION_STOP_USER_FIRST_CHANCE;
                     break;
 
-                case ExceptionBreakpointState.BreakUserHandled:
+                case ExceptionBreakpointStates.BreakUserHandled:
                     _state = enum_EXCEPTION_STATE.EXCEPTION_STOP_USER_UNCAUGHT;
                     break;
 
@@ -541,9 +541,9 @@ namespace Microsoft.MIDebugEngine
     {
         public const string IID = "501C1E21-C557-48B8-BA30-A1EAB0BC4A74";
 
-        private IEnumDebugBoundBreakpoints2 _boundBreakpoints;
+        IDebugBoundBreakpoint2[] _boundBreakpoints;
 
-        public AD7BreakpointEvent(IEnumDebugBoundBreakpoints2 boundBreakpoints)
+        public AD7BreakpointEvent(IDebugBoundBreakpoint2[] boundBreakpoints)
         {
             _boundBreakpoints = boundBreakpoints;
         }
@@ -552,7 +552,7 @@ namespace Microsoft.MIDebugEngine
 
         int IDebugBreakpointEvent2.EnumBreakpoints(out IEnumDebugBoundBreakpoints2 ppEnum)
         {
-            ppEnum = _boundBreakpoints;
+            ppEnum = new AD7BoundBreakpointsEnum(_boundBreakpoints);
             return Constants.S_OK;
         }
 

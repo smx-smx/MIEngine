@@ -83,10 +83,9 @@ namespace Microsoft.MIDebugEngine
         // Determines whether the next statement can be set to the given stack frame and code context.
         int IDebugThread2.CanSetNextStatement(IDebugStackFrame2 stackFrame, IDebugCodeContext2 codeContext)
         {
-            // CLRDBG TODO: This implementation should be changed to compare the method token
             ulong addr = ((AD7MemoryAddress)codeContext).Address;
             AD7StackFrame frame = ((AD7StackFrame)stackFrame);
-            if (frame.ThreadContext.Level != 0 || frame.Thread != this || !frame.ThreadContext.pc.HasValue || _engine.DebuggedProcess.MICommandFactory.Mode == MIMode.Clrdbg)
+            if (frame.ThreadContext.Level != 0 || frame.Thread != this || !frame.ThreadContext.pc.HasValue)
             {
                 return Constants.S_FALSE;
             }
@@ -105,7 +104,7 @@ namespace Microsoft.MIDebugEngine
 
         // Retrieves a list of the stack frames for this thread.
         // For the sample engine, enumerating the stack frames requires walking the callstack in the debuggee for this thread
-        // and coverting that to an implementation of IEnumDebugFrameInfo2. 
+        // and coverting that to an implementation of IEnumDebugFrameInfo2.
         // Real engines will most likely want to cache this information to avoid recomputing it each time it is asked for,
         // and or construct it on demand instead of walking the entire stack.
         int IDebugThread2.EnumFrameInfo(enum_FRAMEINFO_FLAGS dwFieldSpec, uint nRadix, out IEnumDebugFrameInfo2 enumObject)
@@ -113,6 +112,15 @@ namespace Microsoft.MIDebugEngine
             enumObject = null;
             try
             {
+                uint radix = _engine.CurrentRadix();
+                if (radix != _engine.DebuggedProcess.MICommandFactory.Radix)
+                {
+                    _engine.DebuggedProcess.WorkerThread.RunOperation(async () =>
+                    {
+                        await _engine.UpdateRadixAsync(radix);
+                    });
+                }
+
                 // get the thread's stack frames
                 System.Collections.Generic.List<ThreadContext> stackFrames = null;
                 _engine.DebuggedProcess.WorkerThread.RunOperation(async () => stackFrames = await _engine.DebuggedProcess.ThreadCache.StackFrames(_debuggedThread));
@@ -276,10 +284,9 @@ namespace Microsoft.MIDebugEngine
         // Sets the next statement to the given stack frame and code context.
         int IDebugThread2.SetNextStatement(IDebugStackFrame2 stackFrame, IDebugCodeContext2 codeContext)
         {
-            // CLRDBG TODO: This implementation should be changed to call an MI command
             ulong addr = ((AD7MemoryAddress)codeContext).Address;
             AD7StackFrame frame = ((AD7StackFrame)stackFrame);
-            if (frame.ThreadContext.Level != 0 || frame.Thread != this || !frame.ThreadContext.pc.HasValue || _engine.DebuggedProcess.MICommandFactory.Mode == MIMode.Clrdbg)
+            if (frame.ThreadContext.Level != 0 || frame.Thread != this || !frame.ThreadContext.pc.HasValue)
             {
                 return Constants.S_FALSE;
             }

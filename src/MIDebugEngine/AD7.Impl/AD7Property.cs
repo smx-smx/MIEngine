@@ -3,9 +3,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using Microsoft.VisualStudio.Debugger.Interop;
 using System.Diagnostics;
+using System.Linq;
+using System.Runtime.InteropServices;
+using Microsoft.MIDebugEngine.Natvis;
+using Microsoft.VisualStudio.Debugger.Interop;
+using Microsoft.VisualStudio.Debugger.Interop.MI;
 
 namespace Microsoft.MIDebugEngine
 {
@@ -14,10 +17,11 @@ namespace Microsoft.MIDebugEngine
     // The property is usually the result of an expression evaluation. 
     //
     // The sample engine only supports locals and parameters for functions that have symbols loaded.
-    internal class AD7Property : IDebugProperty3
+    internal class AD7Property : IDebugProperty3, IDebugProperty160, IDebugMIEngineProperty
     {
         private static uint s_maxChars = 1000000;
         private byte[] _bytes;
+        private VisualizerId[] _uiVisualizers = null;
 
         private AD7Engine _engine;
         private IVariableInformation _variableInformation;
@@ -27,6 +31,8 @@ namespace Microsoft.MIDebugEngine
             _engine = engine;
             _variableInformation = vi;
         }
+
+        private static ulong DBG_ATTRIB_HAS_DATA_BREAKPOINT = 0x1000000000000000;
 
         // Construct a DEBUG_PROPERTY_INFO representing this local or parameter.
         public DEBUG_PROPERTY_INFO ConstructDebugPropertyInfo(enum_DEBUGPROP_INFO_FLAGS dwFields)
@@ -41,10 +47,11 @@ namespace Microsoft.MIDebugEngine
             }
 
             DEBUG_PROPERTY_INFO propertyInfo = new DEBUG_PROPERTY_INFO();
+            string fullName = variable.FullName();
 
             if ((dwFields & enum_DEBUGPROP_INFO_FLAGS.DEBUGPROP_INFO_FULLNAME) != 0)
             {
-                propertyInfo.bstrFullName = variable.FullName();
+                propertyInfo.bstrFullName = fullName;
                 if (propertyInfo.bstrFullName != null)
                 {
                     propertyInfo.dwFields |= enum_DEBUGPROP_INFO_FLAGS.DEBUGPROP_INFO_FULLNAME;
@@ -65,22 +72,12 @@ namespace Microsoft.MIDebugEngine
 
             if ((dwFields & enum_DEBUGPROP_INFO_FLAGS.DEBUGPROP_INFO_VALUE) != 0)
             {
-                propertyInfo.bstrValue = _engine.DebuggedProcess.Natvis.FormatDisplayString(variable);
+                (propertyInfo.bstrValue, _uiVisualizers) = _engine.DebuggedProcess.Natvis.FormatDisplayString(variable);
                 propertyInfo.dwFields |= enum_DEBUGPROP_INFO_FLAGS.DEBUGPROP_INFO_VALUE;
             }
 
             if ((dwFields & enum_DEBUGPROP_INFO_FLAGS.DEBUGPROP_INFO_ATTRIB) != 0)
             {
-                // Only check this property if we're running under clrdbg, other engines require
-                // double the mi messages since var-show-attributes is a separate call.
-                if (_engine.DebuggedProcess.MICommandFactory.Mode == MICore.MIMode.Clrdbg)
-                {
-                    if (variable.IsReadOnly())
-                    {
-                        propertyInfo.dwAttrib |= enum_DBG_ATTRIB_FLAGS.DBG_ATTRIB_VALUE_READONLY;
-                    }
-                }
-
                 if (variable.CountChildren != 0)
                 {
                     propertyInfo.dwAttrib |= enum_DBG_ATTRIB_FLAGS.DBG_ATTRIB_OBJ_IS_EXPANDABLE;
@@ -89,6 +86,29 @@ namespace Microsoft.MIDebugEngine
                 if (variable.Error)
                 {
                     propertyInfo.dwAttrib |= enum_DBG_ATTRIB_FLAGS.DBG_ATTRIB_VALUE_ERROR;
+                } else
+                {
+                    propertyInfo.dwAttrib |= enum_DBG_ATTRIB_FLAGS.DBG_ATTRIB_DATA;
+                    if (!string.IsNullOrEmpty(fullName))
+                    {
+                        lock (_engine.DebuggedProcess.DataBreakpointVariables)
+                        {
+                            if (_engine.DebuggedProcess.DataBreakpointVariables.Any(candidate =>
+                                candidate.Length > fullName.Length
+                                && candidate.EndsWith(fullName, StringComparison.Ordinal)
+                                && candidate[candidate.Length - fullName.Length - 1] == ','))
+                            {
+                                try
+                                {
+                                    if (_engine.DebuggedProcess.DataBreakpointVariables.Contains(variable.Address() + "," + fullName))
+                                    {
+                                        propertyInfo.dwAttrib |= (enum_DBG_ATTRIB_FLAGS)DBG_ATTRIB_HAS_DATA_BREAKPOINT;
+                                    }
+                                }
+                                catch (Exception) { }
+                            }
+                        }
+                    }
                 }
 
                 if (variable.IsStringType)
@@ -96,6 +116,15 @@ namespace Microsoft.MIDebugEngine
                     propertyInfo.dwAttrib |= enum_DBG_ATTRIB_FLAGS.DBG_ATTRIB_VALUE_RAW_STRING;
                 }
                 propertyInfo.dwAttrib |= variable.Access;
+
+                if (_uiVisualizers != null && _uiVisualizers.Length > 0)
+                {
+                    propertyInfo.dwAttrib |= enum_DBG_ATTRIB_FLAGS.DBG_ATTRIB_VALUE_CUSTOM_VIEWER;
+                    if (_uiVisualizers.Length > 1)
+                    {
+                        propertyInfo.dwAttrib |= enum_DBG_ATTRIB_FLAGS.DBG_ATTRIB_MULTI_CUSTOM_VIEWERS;
+                    }
+                }
             }
 
             // If the debugger has asked for the property, or the property has children (meaning it is a pointer in the sample)
@@ -126,10 +155,32 @@ namespace Microsoft.MIDebugEngine
                 {
                     _engine.DebuggedProcess.Natvis.WaitDialog.ShowWaitDialog(_variableInformation.Name);
                     var children = _engine.DebuggedProcess.Natvis.Expand(_variableInformation);
-                    DEBUG_PROPERTY_INFO[] properties = new DEBUG_PROPERTY_INFO[children.Length];
-                    for (int i = 0; i < children.Length; i++)
+
+                    // Count number of children that fit filter (results saved in "fitsFilter")
+                    int propertyCount = children.Length;
+                    bool[] fitsFilter = null;
+                    if (!string.IsNullOrEmpty(pszNameFilter))
                     {
-                        properties[i] = (new AD7Property(_engine, children[i])).ConstructDebugPropertyInfo(dwFields);
+                        fitsFilter = new bool[children.Length];
+                        for (int i = 0; i < children.Length; i++)
+                        {
+                            fitsFilter[i] = string.Equals(children[i].Name, pszNameFilter, StringComparison.Ordinal);
+                            if (!fitsFilter[i])
+                            {
+                                propertyCount--;
+                            }
+                        }
+                    }
+
+                    // Create property array
+                    DEBUG_PROPERTY_INFO[] properties = new DEBUG_PROPERTY_INFO[propertyCount];
+                    for (int i = 0, j = 0; i < children.Length; i++)
+                    {
+                        if (fitsFilter == null || fitsFilter[i])
+                        {
+                            properties[j] = (new AD7Property(_engine, children[i])).ConstructDebugPropertyInfo(dwFields);
+                            ++j; // increment j if we fit filter, this allows us to traverse "properties" array properly.
+                        }
                     }
                     ppEnum = new AD7PropertyEnum(properties);
                     return Constants.S_OK;
@@ -162,7 +213,8 @@ namespace Microsoft.MIDebugEngine
         // Returns the memory bytes for a property value.
         public int GetMemoryBytes(out IDebugMemoryBytes2 ppMemoryBytes)
         {
-            throw new NotImplementedException();
+            ppMemoryBytes = _engine;
+            return Constants.S_OK;
         }
 
         // Returns the memory context for a property value.
@@ -173,11 +225,11 @@ namespace Microsoft.MIDebugEngine
                 return AD7_HRESULT.S_GETMEMORYCONTEXT_NO_MEMORY_CONTEXT;
             // try to interpret the result as an address
             string v = _variableInformation.Value;
-            v = v.Trim();
-            if (v.Length == 0)
+            if (string.IsNullOrWhiteSpace(v))
             {
                 return AD7_HRESULT.S_GETMEMORYCONTEXT_NO_MEMORY_CONTEXT;
             }
+            v = v.Trim();
             if (v[0] == '{')
             {
                 // strip type name and trailing spaces
@@ -266,13 +318,32 @@ namespace Microsoft.MIDebugEngine
 
         public int GetCustomViewerCount(out uint pcelt)
         {
-            pcelt = 0;
+            pcelt = this._uiVisualizers == null ? 0 : (uint)this._uiVisualizers.Length;
             return Constants.S_OK;
         }
 
         public int GetCustomViewerList(uint celtSkip, uint celtRequested, DEBUG_CUSTOM_VIEWER[] rgViewers, out uint pceltFetched)
         {
-            throw new NotImplementedException();
+            pceltFetched = 0;
+            if (this._uiVisualizers == null || (int)celtSkip >= this._uiVisualizers.Length)
+            {
+                return Constants.S_OK;
+            }
+
+            int numleft = this._uiVisualizers.Length - (int)celtSkip;
+            var viewers = this._uiVisualizers.Skip((int)celtSkip).Take(Math.Min((int)celtRequested, numleft));
+
+            int i = 0;
+            foreach (var v in viewers)
+            {
+                rgViewers[i].bstrMetric = v.Name;
+                rgViewers[i].dwID = (uint)v.Id;
+                rgViewers[i].bstrMenuName = _engine.DebuggedProcess.Natvis.GetUIVisualizerName(v.Name, v.Id);
+                i++;
+            }
+
+            pceltFetched = (uint)viewers.Count();
+            return Constants.S_OK;
         }
 
         private void InitializeBytes()
@@ -423,6 +494,32 @@ namespace Microsoft.MIDebugEngine
                 }
             }
             return Constants.E_FAIL;
+        }
+
+        public int GetDataBreakpointInfo160(out string pbstrAddress, out uint pSize, out string pbstrDisplayName, out string pbstrError)
+        {
+            try
+            {
+                pbstrAddress = _variableInformation.Address() + "," + _variableInformation.FullName();
+                pSize = _variableInformation.Size();
+                pbstrDisplayName = _variableInformation.FullName();
+                pbstrError = "";
+                return Constants.S_OK;
+            }
+            catch (Exception e)
+            {
+                pbstrAddress = null;
+                pSize = 0;
+                pbstrDisplayName = null;
+                pbstrError = e.Message;
+            }
+            return Constants.E_FAIL;
+        }
+
+        public int GetExpressionContext([MarshalAs(UnmanagedType.Interface), Out] out IDebugExpressionContext2 ppExpressionContext)
+        {
+            ppExpressionContext = new AD7StackFrame(_engine, _variableInformation.Client, _variableInformation.ThreadContext);
+            return Constants.S_OK;
         }
     }
 

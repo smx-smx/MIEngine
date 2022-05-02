@@ -205,8 +205,6 @@ namespace Microsoft.MIDebugEngine
             // cases where gdb doesn't provide the breakpoint address (multple binds to the same location)
             // This will cause the engine to send a breakpoint event accounting for all known breakpoints
             // that are hit. 
-            // Clrdbg does not support addresses on its breakpoints, so the bkptno code path is the only 
-            // supported path in that case
             AD7BoundBreakpoint[] hitBps = FindBoundBreakpointsAtAddress(bkptno, addr, frame);
 
             foreach (AD7BoundBreakpoint currBoundBp in hitBps)
@@ -267,7 +265,7 @@ namespace Microsoft.MIDebugEngine
             lock (_pendingBreakpoints)
             {
                 breakpointsPendingDeletion = _pendingBreakpoints.FindAll((b) => b.PendingDelete);
-                _pendingBreakpoints.RemoveAll((b) => b.PendingDelete);
+                _pendingBreakpoints.RemoveAll((b) => b.Deleted);
             }
 
             if (breakpointsPendingDeletion != null)

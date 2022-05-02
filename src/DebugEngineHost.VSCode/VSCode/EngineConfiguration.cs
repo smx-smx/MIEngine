@@ -32,6 +32,8 @@ namespace Microsoft.DebugEngineHost.VSCode
         private readonly ExceptionSettings _exceptionSettings = new ExceptionSettings();
         private bool _conditionalBP;
         private bool _functionBP;
+        private bool _clipboardContext;
+        private bool _dataBP;
 
         // NOTE: CoreCLR doesn't support providing a code base when loading assemblies. So all debug engines
         // must be placed in the directory of OpenDebugAD7.exe
@@ -67,6 +69,19 @@ namespace Microsoft.DebugEngineHost.VSCode
             set { SetProperty(out _functionBP, value); }
         }
 
+        public bool ClipboardContext
+        { 
+            get { return _clipboardContext; } 
+            set { SetProperty(out _clipboardContext, value); }
+        }
+
+        public bool DataBP
+        {
+            get { return _dataBP; }
+            set { SetProperty(out _dataBP, value); }
+        }
+
+
         /// <summary>
         /// Provides the directory of the debug adapter. This is the directory where
         /// configuration files are read from.
@@ -94,7 +109,7 @@ namespace Microsoft.DebugEngineHost.VSCode
         {
             if (adapterDirectory == null)
             {
-                throw new ArgumentNullException("adapterDirectory");
+                throw new ArgumentNullException(nameof(adapterDirectory));
             }
 
             if (Interlocked.CompareExchange(ref s_adapterDirectory, adapterDirectory, null) != null)
@@ -130,6 +145,8 @@ namespace Microsoft.DebugEngineHost.VSCode
         /// </summary>
         public object LoadEngine()
         {
+            AssemblyResolver.Initialize();
+
             AssemblyName assemblyName = new System.Reflection.AssemblyName(this.EngineAssemblyName);
             Assembly engineAssembly = Assembly.Load(assemblyName);
             Type engineClass = engineAssembly.GetType(this.EngineClassName);

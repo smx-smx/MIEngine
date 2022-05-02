@@ -1,24 +1,20 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using MICore;
+using Microsoft.DebugEngineHost;
+using Microsoft.VisualStudio.Debugger.Interop;
+using Microsoft.VisualStudio.Debugger.Interop.DAP;
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Globalization;
-using Microsoft.VisualStudio.Debugger.Interop;
-using System.Collections;
-using System.Diagnostics;
-using System.Threading;
-using MICore;
-using System.Threading.Tasks;
-using System.Text.RegularExpressions;
-using System.Xml.Serialization;
-using System.Xml;
 using System.IO;
-using Microsoft.DebugEngineHost;
+using System.Linq;
 using System.Reflection;
-
-using Logger = MICore.Logger;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Xml;
+using System.Xml.Serialization;
 
 namespace Microsoft.MIDebugEngine.Natvis
 {
@@ -53,7 +49,7 @@ namespace Microsoft.MIDebugEngine.Natvis
         public VariableInformation FindChildByName(string name) => Parent.FindChildByName(name);
         public string EvalDependentExpression(string expr) => Parent.EvalDependentExpression(expr);
         public void AsyncEval(IDebugEventCallback2 pExprCallback) => Parent.AsyncEval(pExprCallback);
-        public void SyncEval(enum_EVALFLAGS dwFlags) => Parent.SyncEval(dwFlags);
+        public void SyncEval(enum_EVALFLAGS dwFlags, DAPEvalFlags dwDAPFlags) => Parent.SyncEval(dwFlags, dwDAPFlags);
         public virtual string FullName() => Name;
         public void EnsureChildren() => Parent.EnsureChildren();
         public void AsyncError(IDebugEventCallback2 pExprCallback, IDebugProperty2 error)
@@ -65,12 +61,21 @@ namespace Microsoft.MIDebugEngine.Natvis
         {
         }
         public bool IsPreformatted { get { return Parent.IsPreformatted; } set { } }
+
+        public string Address()
+        {
+            return Parent.Address();
+        }
+        public uint Size()
+        {
+            return Parent.Size();
+        }
     }
 
     internal class VisualizerWrapper : SimpleWrapper
     {
         public readonly Natvis.VisualizerInfo Visualizer;
-        private bool _isVisualizerView;
+        private readonly bool _isVisualizerView;
 
         public VisualizerWrapper(string name, AD7Engine engine, IVariableInformation underlyingVariable, Natvis.VisualizerInfo viz, bool isVisualizerView)
             : base(name, engine, underlyingVariable)
@@ -85,6 +90,18 @@ namespace Microsoft.MIDebugEngine.Natvis
             return _isVisualizerView ? Parent.Name + ",viz" : Name;
         }
     }
+
+    internal struct VisualizerId
+    {
+        public string Name { get; }
+        public int Id { get; }
+
+        public VisualizerId(string name,int id)
+        {
+            this.Name = name;
+            this.Id = id;
+        }
+    };
 
     public class Natvis
     {
@@ -114,6 +131,7 @@ namespace Microsoft.MIDebugEngine.Natvis
         {
             public List<TypeInfo> Visualizers { get; private set; }
             public List<AliasInfo> Aliases { get; private set; }
+            public List<UIVisualizerType> UIVisualizers { get; set; } = null;
             public readonly AutoVisualizer Environment;
 
             public FileInfo(AutoVisualizer env)
@@ -129,6 +147,15 @@ namespace Microsoft.MIDebugEngine.Natvis
             public VisualizerType Visualizer { get; private set; }
             public Dictionary<string, string> ScopedNames { get; private set; }
 
+            public VisualizerId[] GetUIVisualizers()
+            {
+                return this.Visualizer.Items.Where((i) => i is UIVisualizerItemType).Select(i =>
+                  {
+                      var visualizer = (UIVisualizerItemType)i;
+                      return new VisualizerId(visualizer.ServiceId, visualizer.Id);
+                  }).ToArray();
+            }
+
             public VisualizerInfo(VisualizerType viz, TypeName name)
             {
                 Visualizer = viz;
@@ -141,9 +168,9 @@ namespace Microsoft.MIDebugEngine.Natvis
             }
         }
 
-        private static Regex s_variableName;
-        private static Regex s_subfieldNameHere;
-        private static Regex s_expression;
+        private static Regex s_variableName = new Regex("[a-zA-Z$_][a-zA-Z$_0-9]*");
+        private static Regex s_subfieldNameHere = new Regex(@"\G((\.|->)[a-zA-Z$_][a-zA-Z$_0-9]*)+");
+        private static Regex s_expression = new Regex(@"^\{[^\}]*\}");
         private List<FileInfo> _typeVisualizers;
         private DebuggedProcess _process;
         private Dictionary<string, VisualizerInfo> _vizCache;
@@ -164,13 +191,6 @@ namespace Microsoft.MIDebugEngine.Natvis
         }
         public DisplayStringsState ShowDisplayStrings { get; set; }
 
-        static Natvis()
-        {
-            s_variableName = new Regex("[a-zA-Z$_][a-zA-Z$_0-9]*");
-            s_subfieldNameHere = new Regex(@"\G((\.|->)[a-zA-Z$_][a-zA-Z$_0-9]*)+");
-            s_expression = new Regex(@"^\{[^\}]*\}");
-        }
-
         internal Natvis(DebuggedProcess process, bool showDisplayString)
         {
             _typeVisualizers = new List<FileInfo>();
@@ -186,7 +206,7 @@ namespace Microsoft.MIDebugEngine.Natvis
         {
             try
             {
-                HostNatvisProject.FindNatvisInSolution((s) => LoadFile(s));
+                HostNatvisProject.FindNatvis((s) => LoadFile(s));
             }
             catch (FileNotFoundException)
             {
@@ -318,6 +338,12 @@ namespace Microsoft.MIDebugEngine.Natvis
                                 }
                             }
                         }
+
+                        if (autoVis.UIVisualizer != null)
+                        {
+                            f.UIVisualizers = autoVis.UIVisualizer.ToList();
+                        }
+
                         _typeVisualizers.Add(f);
                     }
                     return autoVis != null;
@@ -331,8 +357,9 @@ namespace Microsoft.MIDebugEngine.Natvis
             }
         }
 
-        internal string FormatDisplayString(IVariableInformation variable)
+        internal (string value, VisualizerId[] uiVisualizers) FormatDisplayString(IVariableInformation variable)
         {
+            VisualizerInfo visualizer = null;
             try
             {
                 _depth++;
@@ -343,10 +370,10 @@ namespace Microsoft.MIDebugEngine.Natvis
                         || (ShowDisplayStrings == DisplayStringsState.ForVisualizedItems && variable.IsVisualized)) &&
                         !variable.IsPreformatted)
                     {
-                        VisualizerInfo visualizer = FindType(variable);
+                        visualizer = FindType(variable);
                         if (visualizer == null)
                         {
-                            return variable.Value;
+                            return (variable.Value, null);
                         }
 
                         Cache.Add(variable);    // vizualized value has been displayed
@@ -360,7 +387,7 @@ namespace Microsoft.MIDebugEngine.Natvis
                                 {
                                     continue;
                                 }
-                                return FormatValue(display.Value, variable, visualizer.ScopedNames);
+                                return (FormatValue(display.Value, variable, visualizer.ScopedNames), visualizer.GetUIVisualizers());
                             }
                         }
                     }
@@ -376,7 +403,7 @@ namespace Microsoft.MIDebugEngine.Natvis
             {
                 _depth--;
             }
-            return variable.Value;
+            return (variable.Value, visualizer?.GetUIVisualizers());
         }
 
         private IVariableInformation GetVisualizationWrapper(IVariableInformation variable)
@@ -429,10 +456,11 @@ namespace Microsoft.MIDebugEngine.Natvis
         internal IVariableInformation GetVariable(string expr, AD7StackFrame frame)
         {
             IVariableInformation variable;
-            if (expr.EndsWith(",viz", StringComparison.Ordinal))
+            if (!EngineUtils.IsConsoleExecCmd(expr, out string _, out string _)
+                && expr.EndsWith(",viz", StringComparison.Ordinal))
             {
                 expr = expr.Substring(0, expr.Length - 4);
-                variable = new VariableInformation(expr, frame.ThreadContext, frame.Engine, frame.Thread);
+                variable = new VariableInformation(expr, expr, frame.ThreadContext, frame.Engine, frame.Thread);
                 variable.SyncEval();
                 if (!variable.Error)
                 {
@@ -441,9 +469,24 @@ namespace Microsoft.MIDebugEngine.Natvis
             }
             else
             {
-                variable = new VariableInformation(expr, frame.ThreadContext, frame.Engine, frame.Thread);
+                variable = new VariableInformation(expr, expr, frame.ThreadContext, frame.Engine, frame.Thread);
             }
             return variable;
+        }
+
+        internal string GetUIVisualizerName(string serviceId, int id)
+        {
+            string result = string.Empty;
+            this._typeVisualizers.ForEach((f)=>
+            {
+                UIVisualizerType uiViz;
+                if ((uiViz = f.UIVisualizers?.FirstOrDefault((u) => u.ServiceId == serviceId && u.Id == id)) != null)
+                {
+                    result = uiViz.MenuName;
+                }
+            });
+
+            return result;
         }
 
         private delegate IVariableInformation Traverse(IVariableInformation node);
@@ -489,7 +532,7 @@ namespace Microsoft.MIDebugEngine.Natvis
                     {
                         if (EvalCondition(vp.Condition, variable, visualizer.ScopedNames))
                         {
-                            IVariableInformation ptrExpr = GetExpression('*' + vp.Value, variable, visualizer.ScopedNames);
+                            IVariableInformation ptrExpr = GetExpression("*(" + vp.Value + ")", variable, visualizer.ScopedNames);
                             string typename = ptrExpr.TypeName;
                             if (String.IsNullOrWhiteSpace(typename))
                             {
@@ -1082,7 +1125,7 @@ namespace Microsoft.MIDebugEngine.Natvis
             string processedExpr = ReplaceNamesInExpression(expression, variable, scopedNames);
             IVariableInformation expressionVariable = new VariableInformation(processedExpr, variable, _process.Engine, null);
             expressionVariable.SyncEval();
-            return FormatDisplayString(expressionVariable);
+            return FormatDisplayString(expressionVariable).value;
         }
     }
 }

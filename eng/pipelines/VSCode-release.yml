@@ -1,0 +1,32 @@
+---
+name: $(Date:yyyMMdd).$(Rev:r)
+variables:
+  - group: TSDTUSR
+stages:
+- stage: Windows
+  dependsOn: []
+  jobs:
+  - template: ./jobs/VSEngSS-MicroBuild2022-1ES.job.yml
+    parameters:
+      DisplayName: 'VSCode_Release'
+      JobTemplate:
+      - template: ../templates/VSCode-release.template.yml
+
+- stage: OSX_CodeSign
+  dependsOn: [Windows]
+  jobs:
+  - template: ./jobs/MSHosted-OSX.job.yml
+    parameters:
+      DisplayName: 'OSX Sign/Harden'
+      JobTemplate:
+      - template: ../templates/VSCode-codesign-osx.template.yml
+
+- stage: OSX_ESRPSign
+  dependsOn: [OSX_CodeSign]
+  jobs:
+  - template: ./jobs/VSEngSS-MicroBuild2022-1ES.job.yml
+    parameters:
+      DisplayName: 'OSX Sign/Harden'
+      JobTemplate:
+      - template: ../templates/VSCode-esrp-sign-osx.template.yml
+...

@@ -1,17 +1,15 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using MICore;
+using Microsoft.VisualStudio.Debugger.Interop;
+using Microsoft.VisualStudio.Debugger.Interop.DAP;
 using System;
 using System.Collections.Generic;
-using System.Text;
-using Microsoft.VisualStudio.Debugger.Interop;
-using System.Collections;
 using System.Diagnostics;
-using System.Threading;
-using MICore;
-using System.Threading.Tasks;
-using System.Text.RegularExpressions;
 using System.Globalization;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace Microsoft.MIDebugEngine
 {
@@ -32,7 +30,7 @@ namespace Microsoft.MIDebugEngine
         void EnsureChildren();
         void AsyncEval(IDebugEventCallback2 pExprCallback);
         void AsyncError(IDebugEventCallback2 pExprCallback, IDebugProperty2 error);
-        void SyncEval(enum_EVALFLAGS dwFlags = 0);
+        void SyncEval(enum_EVALFLAGS dwFlags = 0, DAPEvalFlags dwDAPFlags = 0);
         ThreadContext ThreadContext { get; }
         VariableInformation FindChildByName(string name);
         string EvalDependentExpression(string expr);
@@ -40,6 +38,8 @@ namespace Microsoft.MIDebugEngine
         bool IsReadOnly();
         enum_DEBUGPROP_INFO_FLAGS PropertyInfoFlags { get; set; }
         bool IsPreformatted { get; set; }
+        string Address();
+        uint Size();
     }
 
     public class SimpleVariableInformation
@@ -59,8 +59,8 @@ namespace Microsoft.MIDebugEngine
 
         internal async Task<VariableInformation> CreateMIDebuggerVariable(ThreadContext ctx, AD7Engine engine, AD7Thread thread)
         {
-            VariableInformation vi = new VariableInformation(Name, ctx, engine, thread, IsParameter);
-            await vi.Eval();
+            VariableInformation vi = new VariableInformation(Name, Name, ctx, engine, thread, IsParameter);
+            await vi.Eval(engine.CurrentRadix());
             return vi;
         }
     }
@@ -89,6 +89,28 @@ namespace Microsoft.MIDebugEngine
         private string DisplayHint { get; set; }
         public bool IsPreformatted { get; set; }
 
+        static readonly Lazy<Regex> s_addressPattern = new Lazy<Regex>(() => new Regex(@"^(0x[0-9a-fA-F]+)\b"));
+
+        public string Address()
+        {
+            // ask GDB to evaluate "&expression"
+            string command = "&("+FullName()+")";
+            var result = EvalDependentExpression(command);
+            Match m = s_addressPattern.Value.Match(result);
+            if (m.Success)
+            {
+                return m.Captures[0].ToString();
+            }
+            string errorMessage = String.Format(CultureInfo.InvariantCulture, "Unexpected result {0} from evaluating {1}", result, command);
+            throw new UnexpectedMIResultException(_debuggedProcess.MICommandFactory.Name, "-data-evaluate-expression", errorMessage);
+        }
+
+        public uint Size()
+        {
+            // ask GDB to evaluate "sizeof(expression)"
+            string command = "sizeof("+FullName()+")";
+            return Convert.ToUInt32(EvalDependentExpression(command), CultureInfo.InvariantCulture);
+        }
 
         private static bool IsPointer(string typeName)
         {
@@ -117,7 +139,7 @@ namespace Microsoft.MIDebugEngine
                         {
                             op = "->";
                             // Underlying debugger sometimes has trouble with long expressions (parent-expression can be arbitrarily long),
-                            // so attempt to simplify the expression by using ((parent-type)0xabc)->field instead of (parent-expression)->field 
+                            // so attempt to simplify the expression by using ((parent-type)0xabc)->field instead of (parent-expression)->field
                             ulong addr;
                             if (_parent.Value.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
                                     && ulong.TryParse(_parent.Value.Substring(2), NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out addr))
@@ -126,6 +148,9 @@ namespace Microsoft.MIDebugEngine
                             }
                         }
                         _fullname = '(' + parentName + ')' + op + _strippedName;
+                        break;
+                    case NodeType.Dereference:
+                        _fullname = "*(" + _parent.FullName() + ")";
                         break;
                     case NodeType.BaseClass:
                     case NodeType.AccessQualifier:
@@ -163,11 +188,6 @@ namespace Microsoft.MIDebugEngine
             }
         }
 
-        static VariableInformation()
-        {
-            s_isFunction = new Regex(@".+\(.*\).*");
-        }
-
         private VariableInformation(ThreadContext ctx, AD7Engine engine, AD7Thread thread)
         {
             _engine = engine;
@@ -189,12 +209,12 @@ namespace Microsoft.MIDebugEngine
         }
 
         //this constructor is used to create root nodes (local/params)
-        internal VariableInformation(string expr, ThreadContext ctx, AD7Engine engine, AD7Thread thread, bool isParameter = false)
+        internal VariableInformation(string displayName, string expr, ThreadContext ctx, AD7Engine engine, AD7Thread thread, bool isParameter = false)
             : this(ctx, engine, thread)
         {
             // strip off formatting string
             _strippedName = StripFormatSpecifier(expr, out _format);
-            Name = expr;
+            Name = displayName;
             IsParameter = isParameter;
             _parent = null;
             VariableNodeType = NodeType.Root;
@@ -254,7 +274,7 @@ namespace Microsoft.MIDebugEngine
 
             if (!results.Contains("value") && (Name == TypeName || Name.Contains("::")))
             {
-                // base classes show up with no value and exp==type 
+                // base classes show up with no value and exp==type
                 // (sometimes underlying debugger does not follow this convention, when using typedefs in templated types so look for "::" in the field name too)
                 Name = TypeName + " (base)";
                 Value = TypeName;
@@ -272,6 +292,10 @@ namespace Microsoft.MIDebugEngine
             else if (Name == "<anonymous union>")
             {
                 VariableNodeType = NodeType.AnonymousUnion;
+            }
+            else if (Name.Length > 1 && Name[0] == '*')
+            {
+                VariableNodeType = NodeType.Dereference;
             }
             else
             {
@@ -322,6 +346,7 @@ namespace Microsoft.MIDebugEngine
         {
             Root,
             Field,
+            Dereference,
             ArrayElement,
             BaseClass,
             AccessQualifier,
@@ -338,27 +363,80 @@ namespace Microsoft.MIDebugEngine
                                  @"^const +char *\[[0-9]*\]$"
                              };
 
-        private static Regex s_isFunction;
+        private static Regex s_isFunction = new Regex(@".+\(.*\).*");
 
         private string StripFormatSpecifier(string exp, out string formatSpecifier)
         {
-            formatSpecifier = null;
-            int lastComma = exp.LastIndexOf(',');
-            if (lastComma > 0)
+            formatSpecifier = null; // will be used with -var-set-format
+
+            if (EngineUtils.IsConsoleExecCmd(exp, out string _, out string _))
             {
-                string expFS = exp.Substring(lastComma + 1);
-                string trimmed = expFS.Trim();
-                if (trimmed == "x" || trimmed == "X" || trimmed == "h" || trimmed == "H")
-                {
-                    formatSpecifier = "hexadecimal";
-                    return exp.Substring(0, lastComma);
-                }
-                else if (trimmed == "o")
-                {
-                    formatSpecifier = "octal";
-                    return exp.Substring(0, lastComma);
-                }
+                return exp;
             }
+
+            int lastComma = exp.LastIndexOf(',');
+            if (lastComma <= 0)
+                return exp;
+
+            // https://docs.microsoft.com/en-us/visualstudio/debugger/format-specifiers-in-cpp
+            string expFS = exp.Substring(lastComma + 1);
+            string trimmed = expFS.Trim();
+            switch (trimmed)
+            {
+                case "x":
+                case "X":
+                case "h":
+                case "H":
+                case "xb":
+                case "Xb":
+                case "hb":
+                case "Hb":
+                    // could be improved upon via post-processing with ToUpperInvariant/SubString
+                    formatSpecifier = "zero-hexadecimal";
+                    goto case "";
+                case "o":
+                    formatSpecifier = "octal";
+                    goto case "";
+                case "d":
+                    formatSpecifier = "decimal";
+                    goto case "";
+                case "b":
+                case "bb":
+                    formatSpecifier = "binary";
+                    goto case "";
+                case "e":
+                case "g":
+                    goto case "";
+                case "s":
+                case "sb":
+                case "s8":
+                case "s8b":
+                    return "(const char*)(" + exp.Substring(0, lastComma) + ")";
+                case "su":
+                case "sub":
+                    return "(const char16_t*)(" + exp.Substring(0, lastComma) + ")";
+                case "c":
+                    return "(char)(" + exp.Substring(0, lastComma) + ")";
+                // just remove and ignore these
+                case "en":
+                case "na":
+                case "nd":
+                case "nr":
+                case "!":
+                case "":
+                    return exp.Substring(0, lastComma);
+            }
+
+            // array with static size
+            // TODO: could return '(T(*)[n])(exp)' but requires T
+            var m = Regex.Match(trimmed, @"^\[?(\d+)\]?$");
+            if (m.Success)
+                return exp.Substring(0, lastComma);
+
+            // array with dynamic size
+            if (Regex.Match(trimmed, @"^\[([a-zA-Z_][a-zA-Z_\d]*)\]$").Success)
+                return exp.Substring(0, lastComma);
+
             return exp;
         }
 
@@ -374,9 +452,10 @@ namespace Microsoft.MIDebugEngine
                 engineCallback = _engine.Callback;
             }
 
+            uint radix = _engine.CurrentRadix();
             Task evalTask = Task.Run(async () =>
             {
-                await Eval();
+                await Eval(radix);
             });
 
             Action<Task> onComplete = (Task t) =>
@@ -399,11 +478,12 @@ namespace Microsoft.MIDebugEngine
             AsyncErrorImpl(pExprCallback != null ? new EngineCallback(_engine, pExprCallback) : _engine.Callback, this, error);
         }
 
-        public void SyncEval(enum_EVALFLAGS dwFlags = 0)
+        public void SyncEval(enum_EVALFLAGS dwFlags = 0, DAPEvalFlags dwDAPFlags = 0)
         {
+            uint radix = _engine.CurrentRadix();
             Task eval = Task.Run(async () =>
             {
-                await Eval(dwFlags);
+                await Eval(radix, dwFlags, dwDAPFlags);
             });
             eval.Wait();
         }
@@ -421,41 +501,20 @@ namespace Microsoft.MIDebugEngine
             return val;
         }
 
-        /// <summary>
-        /// This allows console commands to be sent through the eval channel via a '-exec ' or '`' preface
-        /// </summary>
-        /// <param name="command">raw command</param>
-        /// <param name="strippedCommand">command stripped of the preface ('-exec ' or '`')</param>
-        /// <returns>true if it is a console command</returns>
-        private bool IsConsoleExecCmd(string command, out string strippedCommand)
-        {
-            strippedCommand = string.Empty;
-            string execCommandString = "-exec ";
-            if (command.StartsWith(execCommandString, StringComparison.Ordinal))
-            {
-                strippedCommand = command.Substring(execCommandString.Length);
-                return true;
-            }
-            else if (command[0] == '`')
-            {
-                strippedCommand = command.Substring(1).TrimStart(); // remove spaces if any
-                return true;
-            }
-            return false;
-        }
-
-        internal async Task Eval(enum_EVALFLAGS dwFlags = 0)
+        internal async Task Eval(uint radix, enum_EVALFLAGS dwFlags = 0, DAPEvalFlags dwDAPFlags = 0)
         {
             this.VerifyNotDisposed();
 
-            await _engine.UpdateRadixAsync(_engine.CurrentRadix());    // ensure the radix value is up-to-date
+            if (radix != 0)
+            {
+                await _engine.UpdateRadixAsync(radix);    // ensure the radix value is up-to-date
+            }
 
             try
             {
-                string consoleCommand;
-                if (IsConsoleExecCmd(_strippedName, out consoleCommand))
+                if (EngineUtils.IsConsoleExecCmd(_strippedName, out string _, out string consoleCommand))
                 {
-                    // special case for executing raw mi commands. 
+                    // special case for executing raw mi commands.
                     string consoleResults = null;
 
                     consoleResults = await MIDebugCommandDispatcher.ExecuteCommand(consoleCommand, _debuggedProcess, ignoreFailures: true);
@@ -469,6 +528,22 @@ namespace Microsoft.MIDebugEngine
                 }
                 else
                 {
+                    bool canRunClipboardContextCommands = this._debuggedProcess.MICommandFactory.Mode == MIMode.Gdb && dwDAPFlags.HasFlag(DAPEvalFlags.CLIPBOARD_CONTEXT);
+                    int numElements = 200;
+
+                    if (canRunClipboardContextCommands)
+                    {
+                        string showPrintElementsResult = await MIDebugCommandDispatcher.ExecuteCommand("show print elements", _debuggedProcess, ignoreFailures: true);
+                        // Possible values for 'numElementsStr'
+                        // "Limit on string chars or array elements to print is <number>."
+                        // "Limit on string chars or array elements to print is unlimited."
+                        string numElementsStr = Regex.Match(showPrintElementsResult, @"\d+").Value;
+                        if (!string.IsNullOrEmpty(numElementsStr) && int.TryParse(numElementsStr, out numElements) && numElements != 0)
+                        {
+                            await MIDebugCommandDispatcher.ExecuteCommand("set print elements 0", _debuggedProcess, ignoreFailures: true);
+                        }
+                    }
+
                     int threadId = Client.GetDebuggedThread().Id;
                     uint frameLevel = _ctx.Level;
                     Results results = await _engine.DebuggedProcess.MICommandFactory.VarCreate(_strippedName, threadId, frameLevel, dwFlags, ResultClass.None);
@@ -502,7 +577,7 @@ namespace Microsoft.MIDebugEngine
                             _attribsFetched = true;
                         }
                         Value = results.TryFindString("value");
-                        if ((Value == String.Empty || _format != null) && !string.IsNullOrEmpty(_internalName))
+                        if ((string.IsNullOrEmpty(Value) || _format != null) && !string.IsNullOrEmpty(_internalName))
                         {
                             if (_format != null)
                             {
@@ -522,7 +597,7 @@ namespace Microsoft.MIDebugEngine
                                 }
                                 else
                                 {
-                                    Debug.Fail("Weird msg from -var-evaluate-expression");
+                                    Debug.Fail("Unexpected format of msg from -var-evaluate-expression");
                                 }
                             }
                         }
@@ -533,7 +608,12 @@ namespace Microsoft.MIDebugEngine
                     }
                     else
                     {
-                        Debug.Fail("Weird msg from -var-create");
+                        Debug.Fail("Unexpected format of msg from -var-create");
+                    }
+
+                    if (canRunClipboardContextCommands && numElements != 0)
+                    {
+                        await MIDebugCommandDispatcher.ExecuteCommand(string.Format(CultureInfo.InvariantCulture, "set print elements {0}", numElements), _debuggedProcess, ignoreFailures: true);
                     }
                 }
             }
@@ -549,7 +629,7 @@ namespace Microsoft.MIDebugEngine
                 else
                     message = e.Message;
 
-                SetAsError(string.Format(ResourceStrings.Failed_ExecCommandError, message));
+                SetAsError(string.Format(CultureInfo.CurrentCulture, ResourceStrings.Failed_ExecCommandError, message));
             }
         }
 
@@ -570,7 +650,7 @@ namespace Microsoft.MIDebugEngine
             }
             else
             {
-                Debug.Fail("Weird msg from expression formatting");
+                Debug.Fail("Unexpected format of msg from expression formatting");
             }
         }
 
@@ -618,7 +698,7 @@ namespace Microsoft.MIDebugEngine
                 {
                     //
                     // support for gdb's pretty-printing built-in displayHint "map", from the gdb docs:
-                    //      'Indicate that the object being printed is “map-like”, and that the 
+                    //      'Indicate that the object being printed is “map-like”, and that the
                     //      children of this value can be assumed to alternate between keys and values.'
                     //
                     List<VariableInformation> listChildren = new List<VariableInformation>();
@@ -626,7 +706,7 @@ namespace Microsoft.MIDebugEngine
                     {
                         if (children[p].TryFindUint("numchild") > 0)
                         {
-                            var variable = new VariableInformation("[" + (p / 2).ToString() + "]", this);
+                            var variable = new VariableInformation("[" + (p / 2).ToString(CultureInfo.InvariantCulture) + "]", this);
                             variable.CountChildren = 2;
                             var first = new VariableInformation(children[p], variable, "first");
                             var second = new VariableInformation(children[p + 1], this, "second");
@@ -792,7 +872,7 @@ namespace Microsoft.MIDebugEngine
             _isDisposed = true;
 
             //mi -var-delete deletes all children, so only top level variables should be added to the delete list
-            //Additionally, we create variables for anything we try to evaluate. Only succesful evaluations get internal names, 
+            //Additionally, we create variables for anything we try to evaluate. Only succesful evaluations get internal names,
             //so look for that.
             if (!IsChild && !string.IsNullOrWhiteSpace(_internalName))
             {

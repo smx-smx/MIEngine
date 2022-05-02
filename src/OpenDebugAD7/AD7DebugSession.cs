@@ -2,18 +2,21 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.DebugEngineHost;
 using Microsoft.DebugEngineHost.VSCode;
 using Microsoft.VisualStudio.Debugger.Interop;
+using Microsoft.VisualStudio.Debugger.Interop.DAP;
+using Microsoft.VisualStudio.OLE.Interop;
 using Microsoft.VisualStudio.Shared.VSCodeDebugProtocol;
 using Microsoft.VisualStudio.Shared.VSCodeDebugProtocol.Messages;
 using Microsoft.VisualStudio.Shared.VSCodeDebugProtocol.Utilities;
@@ -26,22 +29,32 @@ using ProtocolMessages = Microsoft.VisualStudio.Shared.VSCodeDebugProtocol.Messa
 
 namespace OpenDebugAD7
 {
-    internal class AD7DebugSession : DebugAdapterBase, IDebugPortNotify2, IDebugEventCallback2
+    internal sealed class AD7DebugSession : DebugAdapterBase, IDebugPortNotify2, IDebugEventCallback2
     {
         // This is a general purpose lock. Don't hold it across long operations.
         private readonly object m_lock = new object();
 
         private IDebugProcess2 m_process;
         private string m_processName;
+        private int m_processId = Constants.InvalidProcessId;
         private IDebugEngineLaunch2 m_engineLaunch;
         private IDebugEngine2 m_engine;
         private EngineConfiguration m_engineConfiguration;
         private AD7Port m_port;
+        private ClientId m_clientId;
+        private DebugSettingsCallback m_settingsCallback;
 
         private readonly DebugEventLogger m_logger;
         private readonly Dictionary<string, Dictionary<int, IDebugPendingBreakpoint2>> m_breakpoints;
+
+        private readonly ConcurrentDictionary<int, IDebugCodeContext2> m_gotoCodeContexts = new ConcurrentDictionary<int, IDebugCodeContext2>();
+        private int m_nextContextId = 1;
+
         private Dictionary<string, IDebugPendingBreakpoint2> m_functionBreakpoints;
-        private readonly Dictionary<int, ThreadFrameEnumInfo> m_threadFrameEnumInfos = new Dictionary<int, ThreadFrameEnumInfo>();
+        private Dictionary<ulong, IDebugPendingBreakpoint2> m_instructionBreakpoints;
+        private Dictionary<string, IDebugPendingBreakpoint2> m_dataBreakpoints;
+
+        private List<string> m_exceptionBreakpoints;
         private readonly HandleCollection<IDebugStackFrame2> m_frameHandles;
 
         private IDebugProgram2 m_program;
@@ -51,8 +64,8 @@ namespace OpenDebugAD7
         private int m_firstStoppingEvent;
         private uint m_breakCounter = 0;
         private bool m_isAttach;
-        private bool m_isCoreDump;
         private bool m_isStopped = false;
+        private bool m_isStepping = false;
 
         private readonly TaskCompletionSource<object> m_configurationDoneTCS = new TaskCompletionSource<object>();
 
@@ -63,6 +76,36 @@ namespace OpenDebugAD7
         private VariableManager m_variableManager;
 
         private static Guid s_guidFilterAllLocalsPlusArgs = new Guid("939729a8-4cb0-4647-9831-7ff465240d5f");
+        private static Guid s_guidFilterRegisters = new Guid("223ae797-bd09-4f28-8241-2763bdc5f713");
+
+        private int m_nextModuleHandle = 1;
+        private readonly Dictionary<IDebugModule2, int> m_moduleMap = new Dictionary<IDebugModule2, int>();
+
+        private object RegisterDebugModule(IDebugModule2 debugModule)
+        {
+            Debug.Assert(!m_moduleMap.ContainsKey(debugModule));
+            lock (m_moduleMap)
+            {
+                int moduleHandle = m_nextModuleHandle;
+                m_moduleMap[debugModule] = moduleHandle;
+                m_nextModuleHandle++;
+                return moduleHandle;
+            }
+        }
+        private int? ReleaseDebugModule(IDebugModule2 debugModule)
+        {
+            lock (m_moduleMap)
+            {
+                if (m_moduleMap.TryGetValue(debugModule, out int moduleId))
+                {
+                    m_moduleMap.Remove(debugModule);
+                    return moduleId;
+                } else {
+                    Debug.Fail("Trying to unload a module that has not been registered.");
+                    return null;
+                }
+            }
+        }
 
         #region Constructor
 
@@ -81,6 +124,9 @@ namespace OpenDebugAD7
             m_frameHandles = new HandleCollection<IDebugStackFrame2>();
             m_breakpoints = new Dictionary<string, Dictionary<int, IDebugPendingBreakpoint2>>();
             m_functionBreakpoints = new Dictionary<string, IDebugPendingBreakpoint2>();
+            m_instructionBreakpoints = new Dictionary<ulong, IDebugPendingBreakpoint2>();
+            m_dataBreakpoints = new Dictionary<string, IDebugPendingBreakpoint2>();
+            m_exceptionBreakpoints = new List<string>();
             m_variableManager = new VariableManager();
         }
 
@@ -103,19 +149,27 @@ namespace OpenDebugAD7
             m_logger.Write(LoggingCategory.Telemetry, eventName, propertiesDictionary);
         }
 
+        private static string GetFrameworkVersionAttributeValue()
+        {
+            var attribute = typeof(object).Assembly.GetCustomAttribute(typeof(System.Reflection.AssemblyFileVersionAttribute)) as AssemblyFileVersionAttribute;
+            if (attribute == null)
+                return string.Empty;
+
+            return attribute.Version;
+        }
+
         private ProtocolException CreateProtocolExceptionAndLogTelemetry(string telemetryEventName, int error, string message)
         {
             DebuggerTelemetry.ReportError(telemetryEventName, error);
             return new ProtocolException(message, new Message(error, message));
         }
 
-        private bool ValidateProgramPath(ref string program)
+        private bool ValidateProgramPath(ref string program, string miMode)
         {
             // Make sure the slashes go in the correct direction
             char directorySeparatorChar = Path.DirectorySeparatorChar;
             char wrongSlashChar = directorySeparatorChar == '\\' ? '/' : '\\';
-
-            if (program.Contains(wrongSlashChar))
+            if (program.Contains(wrongSlashChar, StringComparison.Ordinal))
             {
                 program = program.Replace(wrongSlashChar, directorySeparatorChar);
             }
@@ -123,6 +177,14 @@ namespace OpenDebugAD7
             program = m_pathConverter.ConvertLaunchPathForVsCode(program);
             if (!File.Exists(program))
             {
+                // On macOS, check to see if we are trying to debug an app bundle (.app).
+                // 'app bundles' contain various resources and executables in a folder.
+                // LLDB understands how to target these bundles.
+                if (Utilities.IsOSX() && program.EndsWith(".app", StringComparison.OrdinalIgnoreCase) && miMode?.Equals("lldb", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    return Directory.Exists(program);
+                }
+
                 // On Windows, check if we are just missing a '.exe' from the file name. This way we can use the same
                 // launch.json on all platforms.
                 if (Utilities.IsWindows())
@@ -142,7 +204,7 @@ namespace OpenDebugAD7
             return true;
         }
 
-        private void SetCommonDebugSettings(Dictionary<string, JToken> args, out int sourceFileMappings)
+        private void SetCommonDebugSettings(Dictionary<string, JToken> args)
         {
             // Save the Just My Code setting. We will set it once the engine is created.
             m_sessionConfig.JustMyCode = args.GetValueAsBool("justMyCode").GetValueOrDefault(m_sessionConfig.JustMyCode);
@@ -178,26 +240,26 @@ namespace OpenDebugAD7
                     m_logger.SetLoggingConfiguration(LoggingCategory.AdapterResponse, traceResponse.Value);
                 }
             }
+        }
 
-            sourceFileMappings = 0;
-            Dictionary<string, string> sourceFileMap = null;
+        private void SetCommonMISettings(Dictionary<string, JToken> args)
+        {
+            string miMode = args.GetValueAsString("MIMode");
+
+            // If MIMode is not provided, set default to GDB. 
+            if (string.IsNullOrEmpty(miMode))
             {
-                dynamic sourceFileMapProperty = args.GetValueAsObject("sourceFileMap");
-                if (sourceFileMapProperty != null)
+                args["MIMode"] = "gdb";
+            }
+            else
+            {
+                // If lldb and there is no miDebuggerPath, set it.
+                bool hasMiDebuggerPath = args.ContainsKey("miDebuggerPath") && !string.IsNullOrEmpty(args["miDebuggerPath"].ToString());
+                if (miMode == "lldb" && !hasMiDebuggerPath)
                 {
-                    try
-                    {
-                        sourceFileMap = sourceFileMapProperty.ToObject<Dictionary<string, string>>();
-                        sourceFileMappings = sourceFileMap.Count();
-                    }
-                    catch (Exception e)
-                    {
-                        SendMessageEvent(MessagePrefix.Error, "Configuration for 'sourceFileMap' has a format error and will be ignored.\nException: " + e.Message);
-                        sourceFileMap = null;
-                    }
+                    args["miDebuggerPath"] = MILaunchOptions.GetLLDBMIPath();
                 }
             }
-            m_pathConverter.m_pathMapper = new PathMapper(sourceFileMap);
         }
 
         private ProtocolException VerifyLocalProcessId(string processId, string telemetryEventName, out int pid)
@@ -236,26 +298,227 @@ namespace OpenDebugAD7
             return null;
         }
 
-        #endregion
+        private IList<Tracepoint> GetTracepoints(IDebugBreakpointEvent2 debugEvent)
+        {
+            IList<Tracepoint> tracepoints = new List<Tracepoint>();
 
-        #region AD7EventHandlers helper methods
+            if (debugEvent != null)
+            {
+                debugEvent.EnumBreakpoints(out IEnumDebugBoundBreakpoints2 pBoundBreakpoints);
+                IDebugBoundBreakpoint2[] boundBp = new IDebugBoundBreakpoint2[1];
+
+                uint numReturned = 0;
+                while (pBoundBreakpoints.Next(1, boundBp, ref numReturned) == HRConstants.S_OK && numReturned == 1)
+                {
+                    if (boundBp[0].GetPendingBreakpoint(out IDebugPendingBreakpoint2 ppPendingBreakpoint) == HRConstants.S_OK &&
+                        ppPendingBreakpoint.GetBreakpointRequest(out IDebugBreakpointRequest2 ppBPRequest) == HRConstants.S_OK &&
+                        ppBPRequest is AD7BreakPointRequest ad7BreakpointRequest &&
+                        ad7BreakpointRequest.HasTracepoint)
+                    {
+                        tracepoints.Add(ad7BreakpointRequest.Tracepoint);
+                    }
+                }
+            }
+
+            return tracepoints;
+        }
+
+        public StoppedEvent.ReasonValue GetStoppedEventReason(IDebugBreakpointEvent2 breakpointEvent)
+        {
+            StoppedEvent.ReasonValue reason = StoppedEvent.ReasonValue.Breakpoint;
+
+            if (breakpointEvent != null)
+            {
+                if (breakpointEvent.EnumBreakpoints(out IEnumDebugBoundBreakpoints2 enumBreakpoints) == HRConstants.S_OK && 
+                    enumBreakpoints.GetCount(out uint bpCount) == HRConstants.S_OK && 
+                    bpCount > 0)
+                {
+
+                    bool allInstructionBreakpoints = true;
+
+                    IDebugBoundBreakpoint2[] boundBp = new IDebugBoundBreakpoint2[1];
+                    uint fetched = 0;
+                    while (enumBreakpoints.Next(1, boundBp, ref fetched) == HRConstants.S_OK)
+                    {
+
+                        if (boundBp[0].GetPendingBreakpoint(out IDebugPendingBreakpoint2 pendingBreakpoint) == HRConstants.S_OK)
+                        {
+                            if (pendingBreakpoint.GetBreakpointRequest(out IDebugBreakpointRequest2 breakpointRequest) == HRConstants.S_OK)
+                            {
+                                AD7BreakPointRequest request = breakpointRequest as AD7BreakPointRequest;
+
+                                if (breakpointRequest != null && request.MemoryContext == null)
+                                {
+                                    allInstructionBreakpoints = false;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (allInstructionBreakpoints)
+                    {
+                        reason = StoppedEvent.ReasonValue.InstructionBreakpoint;
+                    }
+                }
+            }
+
+            return reason;
+        }
+
+        private static long FileTimeToPosix(FILETIME ft)
+        {
+            long date = ((long)ft.dwHighDateTime << 32) + ft.dwLowDateTime;
+            // removes the diff between 1970 and 1601
+            // 100-nanoseconds = milliseconds * 10000
+            date -= 11644473600000L * 10000;
+
+            // converts back from 100-nanoseconds to seconds
+            return date / 10000000;
+        }
+
+        private ulong ResolveInstructionReference(string memoryReference, int? offset)
+        {
+            ulong address;
+
+            if (memoryReference.StartsWith("0x", StringComparison.Ordinal))
+            {
+                address = Convert.ToUInt64(memoryReference.Substring(2), 16);
+            }
+            else
+            {
+                address = Convert.ToUInt64(memoryReference, 10);
+            }
+
+            if (offset.HasValue && offset.Value != 0)
+            {
+                if (offset < 0)
+                {
+                    address += (ulong)offset.Value;
+                }
+                else
+                {
+                    address -= (ulong)-offset.Value;
+                }
+            }
+
+            return address;
+        }
+
+        private int GetMemoryContext(string memoryReference, int? offset, out IDebugMemoryContext2 memoryContext, out ulong address)
+        {
+            memoryContext = null;
+
+            address = ResolveInstructionReference(memoryReference, offset);
+
+            int hr = HRConstants.E_NOTIMPL; // Engine does not support IDebugMemoryBytesDAP
+
+            if (m_engine is IDebugMemoryBytesDAP debugMemoryBytesDAPEngine)
+            {
+                hr = debugMemoryBytesDAPEngine.CreateMemoryContext(address, out memoryContext);
+            }
+
+            return hr;
+        }
+
+        /// <summary>
+        /// Given 'expression', it will query the engine for an IDebugProperty2
+        /// </summary>
+        /// <param name="eb">Error handler to use in this method.</param>
+        /// <param name="expression">The expression to evaluate.</param>
+        /// <param name="frameId">Which frame to use and evaluate the expression on.</param>
+        /// <param name="isExecInConsole">If the current expression is from a console exec.</param>
+        /// <param name="flags">Flags used for EvaluateSync</param>
+        /// <param name="dapEvalFlags">EvaluationFlags used for DAPEvaluateSync</param>
+        /// <param name="property">The IDebugProperty2 of the 'expression'</param>
+        /// <exception cref="ProtocolException">In any step of the method that fails, it will throw a protocol execption using the ErrorBuilder.</exception>
+        private void GetDebugPropertyFromExpression(ErrorBuilder eb, string expression, int frameId, bool isExecInConsole, enum_EVALFLAGS flags, DAPEvalFlags dapEvalFlags, out IDebugProperty2 property)
+        {
+            property = null;
+
+            IDebugStackFrame2 frame;
+            bool success;
+            if (frameId == -1 && isExecInConsole)
+            {
+                // If exec in console and no stack frame, evaluate off the top frame.
+                success = m_frameHandles.TryGetFirst(out frame);
+            }
+            else
+            {
+                success = m_frameHandles.TryGet(frameId, out frame);
+            }
+
+            if (!success)
+            {
+                throw new ProtocolException(AD7Resources.Error_InvalidStackFrameOnEvaluateExpression);
+            }
+
+            IDebugExpressionContext2 expressionContext;
+            int hr = frame.GetExpressionContext(out expressionContext);
+            eb.CheckHR(hr);
+
+            IDebugExpression2 expressionObject;
+            string error;
+            uint errorIndex;
+            hr = expressionContext.ParseText(expression, enum_PARSEFLAGS.PARSE_EXPRESSION, Constants.ParseRadix, out expressionObject, out error, out errorIndex);
+            if (!string.IsNullOrEmpty(error))
+            {
+                DebuggerTelemetry.ReportError(DebuggerTelemetry.TelemetryEvaluateEventName, 4001, "Error parsing expression");
+                throw new ProtocolException(error);
+            }
+            eb.CheckHR(hr);
+            eb.CheckOutput(expressionObject);
+
+            if (expressionObject is IDebugExpressionDAP expressionDapObject)
+            {
+                hr = expressionDapObject.EvaluateSync(flags, dapEvalFlags, Constants.EvaluationTimeout, null, out property);
+            }
+            else
+            {
+                hr = expressionObject.EvaluateSync(flags, Constants.EvaluationTimeout, null, out property);
+            }
+
+            eb.CheckHR(hr);
+            eb.CheckOutput(property);
+        }
+
+        private uint GetRadixFromValueForamt(ValueFormat format)
+        {
+            uint radix = Constants.EvaluationRadix;
+
+            if (format != null)
+            {
+                if (format.Hex == true)
+                {
+                    radix = 16;
+                }
+            }
+
+            if (m_settingsCallback != null)
+            {
+                // MIEngine generally gets the radix from IDebugSettingsCallback110 rather than using the radix passed
+                m_settingsCallback.Radix = radix;
+            }
+
+            return radix;
+        }
+#endregion
+
+#region AD7EventHandlers helper methods
 
         public void BeforeContinue()
         {
-            if (!m_isCoreDump)
-            {
-                m_isStopped = false;
-                m_variableManager.Reset();
-                m_frameHandles.Reset();
-                m_threadFrameEnumInfos.Clear();
-            }
+            m_isStepping = false;
+            m_isStopped = false;
+            m_variableManager.Reset();
+            m_frameHandles.Reset();
+            m_gotoCodeContexts.Clear();
         }
 
         public void Stopped(IDebugThread2 thread)
         {
             Debug.Assert(m_variableManager.IsEmpty(), "Why do we have variable handles?");
             Debug.Assert(m_frameHandles.IsEmpty, "Why do we have frame handles?");
-            Debug.Assert(m_threadFrameEnumInfos.Count == 0, "Why do we have thread frame enums?");
             m_isStopped = true;
         }
 
@@ -299,11 +562,12 @@ namespace OpenDebugAD7
                 Protocol.SendEvent(new OpenDebugStoppedEvent()
                 {
                     Reason = reason,
+                    Text = text,
+                    ThreadId = thread.Id(),
+                    // Additional Breakpoint Information for Testing/Logging
                     Source = textPosition.Source,
                     Line = textPosition.Line,
                     Column = textPosition.Column,
-                    Text = text,
-                    ThreadId = thread.Id()
                 });
             });
 
@@ -378,7 +642,7 @@ namespace OpenDebugAD7
             IDebugCodeContext2 codeContext;
             try
             {
-                codeContext = HostMarshal.GetCodeContextForIntPtr(location.unionmember1);
+                codeContext = HostMarshal.GetDebugCodeContextForIntPtr(location.unionmember1);
                 HostMarshal.ReleaseCodeContextId(location.unionmember1);
                 location.unionmember1 = IntPtr.Zero;
             }
@@ -443,20 +707,45 @@ namespace OpenDebugAD7
             m_logger.WriteLine(category, prefixString + text);
         }
 
-        private VariablesResponse VariablesFromFrame(IDebugStackFrame2 frame)
+        private VariablesResponse VariablesFromFrame(VariableScope vref, uint radix)
         {
-            VariablesResponse response = new VariablesResponse();
+            var frame = vref.StackFrame;
+            var category = vref.Category;
+
+            var response = new VariablesResponse();
+
+            Guid filter = Guid.Empty;
+            switch (category)
+            {
+            case VariableCategory.Locals:
+                filter = s_guidFilterAllLocalsPlusArgs;
+                break;
+            case VariableCategory.Registers:
+                filter = s_guidFilterRegisters;
+                break;
+            }
 
             uint n;
             IEnumDebugPropertyInfo2 varEnum;
-            if (frame.EnumProperties(enum_DEBUGPROP_INFO_FLAGS.DEBUGPROP_INFO_PROP, 10, ref s_guidFilterAllLocalsPlusArgs, 0, out n, out varEnum) == HRConstants.S_OK)
+            if (frame.EnumProperties(GetDefaultPropertyInfoFlags(), radix, ref filter, 0, out n, out varEnum) == HRConstants.S_OK)
             {
-                DEBUG_PROPERTY_INFO[] props = new DEBUG_PROPERTY_INFO[1];
+                var props = new DEBUG_PROPERTY_INFO[1];
                 uint nProps;
+                var variablesDictionary = new Dictionary<string, Variable>();
                 while (varEnum.Next(1, props, out nProps) == HRConstants.S_OK)
                 {
-                    response.Variables.Add(m_variableManager.CreateVariable(props[0].pProperty, GetDefaultPropertyInfoFlags()));
+                    Variable variable = m_variableManager.CreateVariable(props[0].pProperty, GetDefaultPropertyInfoFlags());
+                    int uniqueCounter = 2;
+                    string variableName = variable.Name;
+                    while (variablesDictionary.ContainsKey(variableName))
+                    {
+                        variableName = String.Format(CultureInfo.InvariantCulture, VariableManager.VariableNameFormat, variable.Name, uniqueCounter++);
+                    }
+                    variable.Name = variableName;
+                    variablesDictionary[variableName] = variable;
+                    m_variableManager.AddVariableProperty((frame, variableName), props[0].pProperty);
                 }
+                response.Variables.AddRange(variablesDictionary.Values);
             }
 
             return response;
@@ -465,10 +754,7 @@ namespace OpenDebugAD7
         public enum_DEBUGPROP_INFO_FLAGS GetDefaultPropertyInfoFlags()
         {
             enum_DEBUGPROP_INFO_FLAGS flags =
-                enum_DEBUGPROP_INFO_FLAGS.DEBUGPROP_INFO_NAME |
-                enum_DEBUGPROP_INFO_FLAGS.DEBUGPROP_INFO_VALUE |
-                enum_DEBUGPROP_INFO_FLAGS.DEBUGPROP_INFO_TYPE |
-                enum_DEBUGPROP_INFO_FLAGS.DEBUGPROP_INFO_ATTRIB |
+                enum_DEBUGPROP_INFO_FLAGS.DEBUGPROP_INFO_STANDARD |
                 enum_DEBUGPROP_INFO_FLAGS.DEBUGPROP_INFO_PROP |
                 enum_DEBUGPROP_INFO_FLAGS.DEBUGPROP_INFO_FULLNAME |
                 (enum_DEBUGPROP_INFO_FLAGS)enum_DEBUGPROP_INFO_FLAGS110.DEBUGPROP110_INFO_FORCE_REAL_FUNCEVAL;
@@ -481,50 +767,97 @@ namespace OpenDebugAD7
             return flags;
         }
 
-        private void SetAllExceptions(enum_EXCEPTION_STATE state)
+        private void SetExceptionCategory(ExceptionSettings.CategoryConfiguration category, enum_EXCEPTION_STATE state)
         {
-            foreach (ExceptionSettings.CategoryConfiguration category in m_engineConfiguration.ExceptionSettings.Categories)
+            var exceptionInfo = new EXCEPTION_INFO[1];
+            exceptionInfo[0].dwState = state;
+            exceptionInfo[0].guidType = category.Id;
+            exceptionInfo[0].bstrExceptionName = category.Name;
+
+            m_engine.SetException(exceptionInfo);
+        }
+
+        private void SetCategoryGuidExceptions(Guid categoryId, enum_EXCEPTION_STATE state)
+        {
+            ExceptionSettings.CategoryConfiguration category = m_engineConfiguration.ExceptionSettings.Categories.FirstOrDefault(x => x.Id == categoryId);
+
+            if (category != null)
             {
                 var exceptionInfo = new EXCEPTION_INFO[1];
                 exceptionInfo[0].dwState = state;
-                exceptionInfo[0].guidType = category.Id;
+                exceptionInfo[0].guidType = categoryId;
                 exceptionInfo[0].bstrExceptionName = category.Name;
+
                 m_engine.SetException(exceptionInfo);
             }
-        }
-
-        private void StepInternal(int threadId, enum_STEPKIND stepKind, enum_STEPUNIT stepUnit, string errorMessage)
-        {
-            // If we are already running ignore additional step requests
-            if (m_isStopped)
+            else
             {
-
-                IDebugThread2 thread = null;
-                lock (m_threads)
-                {
-                    if (!m_threads.TryGetValue(threadId, out thread))
-                    {
-                        throw new AD7Exception(errorMessage);
-                    }
-                }
-
-                BeforeContinue();
-                ErrorBuilder builder = new ErrorBuilder(() => errorMessage);
-                try
-                {
-                    builder.CheckHR(m_program.Step(thread, stepKind, stepUnit));
-                }
-                catch (AD7Exception)
-                {
-                    m_isStopped = true;
-                    throw;
-                }
+                Debug.Fail(categoryId + " is a referencing a non-existant category. This should have been caught in ExceptionSettings.ValidateExceptionFilters.");
             }
         }
 
-        #endregion
+        private void StepInternal(int threadId, enum_STEPKIND stepKind, SteppingGranularity granularity, string errorMessage)
+        {
+            // If we are already running ignore additional step requests
+            if (!m_isStopped)
+                return;
 
-        #region DebugAdapterBase
+            IDebugThread2 thread = null;
+            lock (m_threads)
+            {
+                if (!m_threads.TryGetValue(threadId, out thread))
+                {
+                    throw new AD7Exception(errorMessage);
+                }
+            }
+
+            BeforeContinue();
+            ErrorBuilder builder = new ErrorBuilder(() => errorMessage);
+            m_isStepping = true;
+
+            enum_STEPUNIT stepUnit = enum_STEPUNIT.STEP_STATEMENT;
+            switch (granularity)
+            {
+                case SteppingGranularity.Statement:
+                default:
+                    break;
+                case SteppingGranularity.Line:
+                    stepUnit = enum_STEPUNIT.STEP_LINE;
+                    break;
+                case SteppingGranularity.Instruction:
+                    stepUnit = enum_STEPUNIT.STEP_INSTRUCTION;
+                    break;
+            }
+            try
+            {
+                builder.CheckHR(m_program.Step(thread, stepKind, stepUnit));
+            }
+            catch (AD7Exception)
+            {
+                m_isStopped = true;
+                throw;
+            }
+        }
+
+        private enum ClientId
+        {
+            Unknown,
+            VisualStudio,
+            VsCode,
+            LiveshareServerHost
+        };
+
+        private bool IsClientVS
+        {
+            get
+            {
+                return m_clientId == ClientId.VisualStudio || m_clientId == ClientId.LiveshareServerHost;
+            }
+        }
+
+#endregion
+
+#region DebugAdapterBase
 
         protected override void HandleInitializeRequestAsync(IRequestResponder<InitializeArguments, InitializeResponse> responder)
         {
@@ -546,13 +879,42 @@ namespace OpenDebugAD7
             m_disconnectedOrTerminated = new ManualResetEvent(false);
             m_firstStoppingEvent = 0;
 
+            if (m_engine is IDebugEngine110 engine110)
+            {
+                // MIEngine generally gets the radix from IDebugSettingsCallback110 rather than using the radix passed to individual
+                //  APIs.  To support this mechanism outside of VS, provide a fake settings callback here that we can use to control
+                //  the radix.
+                m_settingsCallback = new DebugSettingsCallback();
+                engine110.SetMainThreadSettingsCallback110(m_settingsCallback);
+            }
+
             m_pathConverter.ClientLinesStartAt1 = arguments.LinesStartAt1.GetValueOrDefault(true);
 
             // Default is that they are URIs
             m_pathConverter.ClientPathsAreURI = !(arguments.PathFormat.GetValueOrDefault(InitializeArguments.PathFormatValue.Unknown) == InitializeArguments.PathFormatValue.Path);
 
+            string clientId = responder.Arguments.ClientID;
+            if (clientId == "visualstudio")
+            {
+                m_clientId = ClientId.VisualStudio;
+            }
+            else if (clientId == "vscode")
+            {
+                m_clientId = ClientId.VsCode;
+            }
+            else if (clientId == "liveshare-server-host")
+            {
+                m_clientId = ClientId.LiveshareServerHost;
+            }
+            else
+            {
+                m_clientId = ClientId.Unknown;
+            }
+
             // If the UI supports RunInTerminal, then register the callback.
-            if (arguments.SupportsRunInTerminalRequest.GetValueOrDefault(false))
+            // NOTE: Currently we don't support using the RunInTerminal request with VS or Windows Codespaces.
+            //       This is because: (1) they don't support 'Integrated' terminal, and (2) for MIEngine, we don't ship WindowsDebugLauncher.exe.
+            if (!IsClientVS && arguments.SupportsRunInTerminalRequest.GetValueOrDefault(false))
             {
                 HostRunInTerminal.RegisterRunInTerminalCallback((title, cwd, useExternalConsole, commandArgs, env, success, error) =>
                 {
@@ -581,14 +943,78 @@ namespace OpenDebugAD7
                 });
             }
 
+            List<ColumnDescriptor> additionalModuleColumns = null;
+
+            if (IsClientVS)
+            {
+                additionalModuleColumns = new List<ColumnDescriptor>();
+                additionalModuleColumns.Add(new ColumnDescriptor(){
+                    AttributeName = "vsLoadAddress",
+                    Label = "Load Address",
+                    Format = "string",
+                    Type = ColumnDescriptor.TypeValue.String
+                });
+                additionalModuleColumns.Add(new ColumnDescriptor(){
+                    AttributeName = "vsPreferredLoadAddress",
+                    Label = "Preferred Load Address",
+                    Format = "string",
+                    Type = ColumnDescriptor.TypeValue.String
+                });
+                additionalModuleColumns.Add(new ColumnDescriptor(){
+                    AttributeName = "vsModuleSize",
+                    Label = "Module Size",
+                    Format = "string",
+                    Type = ColumnDescriptor.TypeValue.Number
+                });
+                additionalModuleColumns.Add(new ColumnDescriptor(){
+                    AttributeName = "vsLoadOrder",
+                    Label = "Order",
+                    Format = "string",
+                    Type = ColumnDescriptor.TypeValue.Number
+                });
+                additionalModuleColumns.Add(new ColumnDescriptor(){
+                    AttributeName = "vsTimestampUTC",
+                    Label = "Timestamp",
+                    Format = "string",
+                    Type = ColumnDescriptor.TypeValue.UnixTimestampUTC
+                });
+                additionalModuleColumns.Add(new ColumnDescriptor(){
+                    AttributeName = "vsIs64Bit",
+                    Label = "64-bit",
+                    Format = "string",
+                    Type = ColumnDescriptor.TypeValue.Boolean
+                });
+            }
+
+            // -catch-throw is not supported in lldb-mi
+            List<ExceptionBreakpointsFilter> filters = new List<ExceptionBreakpointsFilter>();
+            if (!Utilities.IsOSX())
+            {
+                filters = m_engineConfiguration.ExceptionSettings.ExceptionBreakpointFilters.Select(item => new ExceptionBreakpointsFilter() { Default = item.@default, Filter = item.filter, Label = item.label, SupportsCondition = item.supportsCondition, ConditionDescription = item.conditionDescription }).ToList();
+            }
+
             InitializeResponse initializeResponse = new InitializeResponse()
             {
                 SupportsConfigurationDoneRequest = true,
+                SupportsCompletionsRequest = m_engine is IDebugProgramDAP,
                 SupportsEvaluateForHovers = true,
                 SupportsSetVariable = true,
+                SupportsSetExpression = true,
                 SupportsFunctionBreakpoints = m_engineConfiguration.FunctionBP,
                 SupportsConditionalBreakpoints = m_engineConfiguration.ConditionalBP,
-                ExceptionBreakpointFilters = m_engineConfiguration.ExceptionSettings.ExceptionBreakpointFilters.Select(item => new ExceptionBreakpointsFilter() { Default = item.@default, Filter = item.filter, Label = item.label }).ToList()
+                SupportsDataBreakpoints = m_engineConfiguration.DataBP,
+                ExceptionBreakpointFilters = filters,
+                SupportsExceptionFilterOptions = filters.Any(),
+                SupportsClipboardContext = m_engineConfiguration.ClipboardContext,
+                SupportsLogPoints = true,
+                SupportsReadMemoryRequest = m_engine is IDebugMemoryBytesDAP, // TODO: Read from configuration or query engine for capabilities.
+                SupportsModulesRequest = true,
+                AdditionalModuleColumns = additionalModuleColumns,
+                SupportsGotoTargetsRequest = true,
+                SupportsDisassembleRequest = m_engine is IDebugMemoryBytesDAP,
+                SupportsValueFormattingOptions = true,
+                SupportsSteppingGranularity = true,
+                SupportsInstructionBreakpoints = m_engine is IDebugMemoryBytesDAP
             };
 
             responder.SetResponse(initializeResponse);
@@ -601,7 +1027,7 @@ namespace OpenDebugAD7
             int hr;
             DateTime launchStartTime = DateTime.Now;
 
-            string mimode = responder.Arguments.ConfigurationProperties.GetValueAsString("miMode");
+            string mimode = responder.Arguments.ConfigurationProperties.GetValueAsString("MIMode");
             string program = responder.Arguments.ConfigurationProperties.GetValueAsString("program")?.Trim();
             if (string.IsNullOrEmpty(program))
             {
@@ -610,7 +1036,7 @@ namespace OpenDebugAD7
             }
 
             // If program is still in the default state, raise error
-            if (program.EndsWith(">", StringComparison.Ordinal) && program.Contains('<'))
+            if (program.EndsWith(">", StringComparison.Ordinal) && program.Contains('<', StringComparison.Ordinal))
             {
                 responder.SetError(CreateProtocolExceptionAndLogTelemetry(telemetryEventName, 1001, "launch: launch.json must be configured. Change 'program' to the path to the executable file that you would like to debug."));
                 return;
@@ -633,7 +1059,7 @@ namespace OpenDebugAD7
             // The target remote could be any OS, so we don't try to change anything.
             if (!skipFilesystemChecks)
             {
-                if (!ValidateProgramPath(ref program))
+                if (!ValidateProgramPath(ref program, mimode))
                 {
                     responder.SetError(CreateProtocolExceptionAndLogTelemetry(telemetryEventName, 1002, String.Format(CultureInfo.CurrentCulture, "launch: program '{0}' does not exist", program)));
                     return;
@@ -657,8 +1083,7 @@ namespace OpenDebugAD7
                 }
             }
 
-            int sourceFileMappings = 0;
-            SetCommonDebugSettings(responder.Arguments.ConfigurationProperties, sourceFileMappings: out sourceFileMappings);
+            SetCommonDebugSettings(responder.Arguments.ConfigurationProperties);
 
             bool success = false;
             try
@@ -673,23 +1098,9 @@ namespace OpenDebugAD7
                 // Don't convert the workingDirectory string if we are a pipeTransport connection. We are assuming that the user has the correct directory separaters for their target OS
                 string workingDirectoryString = pipeTransport != null ? workingDirectory : m_pathConverter.ConvertClientPathToDebugger(workingDirectory);
 
-                bool debugServerUsed = false;
-                bool isOpenOCD = false;
-                bool stopAtEntrypoint;
-                bool visualizerFileUsed;
-                string launchOptions = MILaunchOptions.CreateLaunchOptions(
-                    program: program,
-                    workingDirectory: workingDirectoryString,
-                    args: JsonConvert.SerializeObject(responder.Arguments.ConfigurationProperties),
-                    isPipeLaunch: responder.Arguments.ConfigurationProperties.ContainsKey("pipeTransport"),
-                    stopAtEntry: out stopAtEntrypoint,
-                    isCoreDump: out m_isCoreDump,
-                    debugServerUsed: out debugServerUsed,
-                    isOpenOCD: out isOpenOCD,
-                    visualizerFileUsed: out visualizerFileUsed);
+                m_sessionConfig.StopAtEntrypoint = responder.Arguments.ConfigurationProperties.GetValueAsBool("stopAtEntry").GetValueOrDefault(false);
 
-                m_sessionConfig.StopAtEntrypoint = stopAtEntrypoint;
-
+                m_processId = Constants.InvalidProcessId;
                 m_processName = program;
 
                 enum_LAUNCH_FLAGS flags = enum_LAUNCH_FLAGS.LAUNCH_DEBUG;
@@ -698,6 +1109,10 @@ namespace OpenDebugAD7
                     flags = enum_LAUNCH_FLAGS.LAUNCH_NODEBUG;
                 }
 
+                SetCommonMISettings(responder.Arguments.ConfigurationProperties);
+
+                string launchJson = JsonConvert.SerializeObject(responder.Arguments.ConfigurationProperties);
+
                 // Then attach
                 hr = m_engineLaunch.LaunchSuspended(null,
                     m_port,
@@ -705,7 +1120,7 @@ namespace OpenDebugAD7
                     null,
                     null,
                     null,
-                    launchOptions,
+                    launchJson,
                     flags,
                     0,
                     0,
@@ -751,19 +1166,13 @@ namespace OpenDebugAD7
 
                 var properties = new Dictionary<string, object>(StringComparer.Ordinal);
 
-                properties.Add(DebuggerTelemetry.TelemetryIsCoreDump, m_isCoreDump);
-                if (debugServerUsed)
-                {
-                    properties.Add(DebuggerTelemetry.TelemetryUsesDebugServer, isOpenOCD ? "openocd" : "other");
-                }
                 if (flags.HasFlag(enum_LAUNCH_FLAGS.LAUNCH_NODEBUG))
                 {
                     properties.Add(DebuggerTelemetry.TelemetryIsNoDebug, true);
                 }
 
-                properties.Add(DebuggerTelemetry.TelemetryVisualizerFileUsed, visualizerFileUsed);
-                properties.Add(DebuggerTelemetry.TelemetrySourceFileMappings, sourceFileMappings);
                 properties.Add(DebuggerTelemetry.TelemetryMIMode, mimode);
+                properties.Add(DebuggerTelemetry.TelemetryFrameworkVersion, GetFrameworkVersionAttributeValue());
 
                 DebuggerTelemetry.ReportTimedEvent(telemetryEventName, DateTime.Now - launchStartTime, properties);
 
@@ -812,9 +1221,8 @@ namespace OpenDebugAD7
             JObject pipeTransport = responder.Arguments.ConfigurationProperties.GetValueAsObject("pipeTransport");
             bool isPipeTransport = (pipeTransport != null);
             bool isLocal = string.IsNullOrEmpty(miDebuggerServerAddress) && !isPipeTransport;
-            bool visualizerFileUsed = false;
-            int sourceFileMappings = 0;
-            string mimode = responder.Arguments.ConfigurationProperties.GetValueAsString("miMode");
+            string mimode = responder.Arguments.ConfigurationProperties.GetValueAsString("MIMode");
+            bool useExtendedRemote = responder.Arguments.ConfigurationProperties.GetValueAsBool("useExtendedRemote").GetValueOrDefault(false);
 
             if (isLocal)
             {
@@ -828,9 +1236,9 @@ namespace OpenDebugAD7
             {
                 string propertyCausingRemote = !string.IsNullOrEmpty(miDebuggerServerAddress) ? "miDebuggerServerAddress" : "pipeTransport";
 
-                if (!string.IsNullOrEmpty(miDebuggerServerAddress) && !string.IsNullOrEmpty(processId))
+                if (!string.IsNullOrEmpty(miDebuggerServerAddress) && !string.IsNullOrEmpty(processId) && !useExtendedRemote)
                 {
-                    responder.SetError(CreateProtocolExceptionAndLogTelemetry(telemetryEventName, 1002, "attach: 'processId' cannot be used with " + propertyCausingRemote));
+                    responder.SetError(CreateProtocolExceptionAndLogTelemetry(telemetryEventName, 1002, "attach: 'useExtendedRemote' needs to be set to true when 'processId' is used with " + propertyCausingRemote));
                     return;
                 }
                 else if (isPipeTransport && (string.IsNullOrEmpty(processId) || string.IsNullOrEmpty(pipeTransport.GetValueAsString("debuggerPath"))))
@@ -850,11 +1258,10 @@ namespace OpenDebugAD7
                 return;
             }
 
-            SetCommonDebugSettings(responder.Arguments.ConfigurationProperties, sourceFileMappings: out sourceFileMappings);
+            SetCommonDebugSettings(responder.Arguments.ConfigurationProperties);
 
             string program = responder.Arguments.ConfigurationProperties.GetValueAsString("program");
             string executable = null;
-            string launchOptions = null;
             bool success = false;
             try
             {
@@ -872,21 +1279,6 @@ namespace OpenDebugAD7
                         responder.SetError(CreateProtocolExceptionAndLogTelemetry(telemetryEventName, 1011, "debuggerPath is required for attachTransport."));
                         return;
                     }
-                    bool debugServerUsed = false;
-                    bool isOpenOCD = false;
-                    bool stopAtEntrypoint = false;
-
-                    launchOptions = MILaunchOptions.CreateLaunchOptions(
-                        program: program,
-                        workingDirectory: String.Empty, // No cwd for attach
-                        args: JsonConvert.SerializeObject(responder.Arguments.ConfigurationProperties),
-                        isPipeLaunch: responder.Arguments.ConfigurationProperties.ContainsKey("pipeTransport"),
-                        stopAtEntry: out stopAtEntrypoint,
-                        isCoreDump: out m_isCoreDump,
-                        debugServerUsed: out debugServerUsed,
-                        isOpenOCD: out isOpenOCD,
-                        visualizerFileUsed: out visualizerFileUsed);
-
 
                     if (string.IsNullOrEmpty(program))
                     {
@@ -907,33 +1299,28 @@ namespace OpenDebugAD7
                         return;
                     }
 
-                    if (!ValidateProgramPath(ref program))
+                    if (!ValidateProgramPath(ref program, mimode))
                     {
                         responder.SetError(CreateProtocolExceptionAndLogTelemetry(telemetryEventName, 1010, String.Format(CultureInfo.CurrentCulture, "attach: program path '{0}' does not exist", program)));
                         return;
                     }
 
-                    bool debugServerUsed = false;
-                    bool isOpenOCD = false;
-                    bool stopAtEntrypoint = false;
-                    launchOptions = MILaunchOptions.CreateLaunchOptions(
-                        program: program,
-                        workingDirectory: string.Empty,
-                        args: JsonConvert.SerializeObject(responder.Arguments.ConfigurationProperties),
-                        isPipeLaunch: responder.Arguments.ConfigurationProperties.ContainsKey("pipeTransport"),
-                        stopAtEntry: out stopAtEntrypoint,
-                        isCoreDump: out m_isCoreDump,
-                        debugServerUsed: out debugServerUsed,
-                        isOpenOCD: out isOpenOCD,
-                        visualizerFileUsed: out visualizerFileUsed);
                     executable = program;
                     m_isAttach = true;
                 }
 
+                if (int.TryParse(processId, NumberStyles.None, CultureInfo.InvariantCulture, out m_processId))
+                {
+                    m_processId = Constants.InvalidProcessId;
+                }
                 m_processName = program ?? string.Empty;
 
+                SetCommonMISettings(responder.Arguments.ConfigurationProperties);
+
+                string launchJson = JsonConvert.SerializeObject(responder.Arguments.ConfigurationProperties);
+
                 // attach
-                int hr = m_engineLaunch.LaunchSuspended(null, m_port, executable, null, null, null, launchOptions, 0, 0, 0, 0, this, out m_process);
+                int hr = m_engineLaunch.LaunchSuspended(null, m_port, executable, null, null, null, launchJson, 0, 0, 0, 0, this, out m_process);
 
                 if (hr != HRConstants.S_OK)
                 {
@@ -974,8 +1361,7 @@ namespace OpenDebugAD7
 
                 var properties = new Dictionary<string, object>(StringComparer.Ordinal);
                 properties.Add(DebuggerTelemetry.TelemetryMIMode, mimode);
-                properties.Add(DebuggerTelemetry.TelemetryVisualizerFileUsed, visualizerFileUsed);
-                properties.Add(DebuggerTelemetry.TelemetrySourceFileMappings, sourceFileMappings);
+                properties.Add(DebuggerTelemetry.TelemetryFrameworkVersion, GetFrameworkVersionAttributeValue());
 
                 DebuggerTelemetry.ReportTimedEvent(telemetryEventName, DateTime.Now - attachStartTime, properties);
                 success = true;
@@ -1067,19 +1453,6 @@ namespace OpenDebugAD7
             responder.SetResponse(new ConfigurationDoneResponse());
         }
 
-        protected override void HandleNextRequestAsync(IRequestResponder<NextArguments> responder)
-        {
-            try
-            {
-                StepInternal(responder.Arguments.ThreadId, enum_STEPKIND.STEP_OVER, enum_STEPUNIT.STEP_STATEMENT, AD7Resources.Error_Scenario_Step_Next);
-                responder.SetResponse(new NextResponse());
-            }
-            catch (AD7Exception e)
-            {
-                responder.SetError(new ProtocolException(e.Message));
-            }
-        }
-
         protected override void HandleContinueRequestAsync(IRequestResponder<ContinueArguments, ContinueResponse> responder)
         {
             int threadId = responder.Arguments.ThreadId;
@@ -1121,19 +1494,29 @@ namespace OpenDebugAD7
 
         protected override void HandleStepInRequestAsync(IRequestResponder<StepInArguments> responder)
         {
-            StepInResponse response = new StepInResponse();
-
             try
             {
-                StepInternal(responder.Arguments.ThreadId, enum_STEPKIND.STEP_INTO, enum_STEPUNIT.STEP_STATEMENT, AD7Resources.Error_Scenario_Step_In);
-                responder.SetResponse(response);
+                var granularity = responder.Arguments.Granularity.GetValueOrDefault();
+                StepInternal(responder.Arguments.ThreadId, enum_STEPKIND.STEP_INTO, granularity, AD7Resources.Error_Scenario_Step_In);
+                responder.SetResponse(new StepInResponse());
             }
             catch (AD7Exception e)
             {
-                if (m_isCoreDump)
-                {
-                    responder.SetError(new ProtocolException(e.Message));
-                }
+                responder.SetError(new ProtocolException(e.Message));
+            }
+        }
+
+        protected override void HandleNextRequestAsync(IRequestResponder<NextArguments> responder)
+        {
+            try
+            {
+                var granularity = responder.Arguments.Granularity.GetValueOrDefault();
+                StepInternal(responder.Arguments.ThreadId, enum_STEPKIND.STEP_OVER, granularity, AD7Resources.Error_Scenario_Step_Next);
+                responder.SetResponse(new NextResponse());
+            }
+            catch (AD7Exception e)
+            {
+                responder.SetError(new ProtocolException(e.Message));
             }
         }
 
@@ -1141,7 +1524,8 @@ namespace OpenDebugAD7
         {
             try
             {
-                StepInternal(responder.Arguments.ThreadId, enum_STEPKIND.STEP_OUT, enum_STEPUNIT.STEP_STATEMENT, AD7Resources.Error_Scenario_Step_Out);
+                var granularity = responder.Arguments.Granularity.GetValueOrDefault();
+                StepInternal(responder.Arguments.ThreadId, enum_STEPKIND.STEP_OUT, granularity, AD7Resources.Error_Scenario_Step_Out);
                 responder.SetResponse(new StepOutResponse());
             }
             catch (AD7Exception e)
@@ -1157,105 +1541,318 @@ namespace OpenDebugAD7
             responder.SetResponse(new PauseResponse());
         }
 
-        protected override void HandleStackTraceRequestAsync(IRequestResponder<StackTraceArguments, StackTraceResponse> responder)
+        protected override void HandleGotoRequestAsync(IRequestResponder<GotoArguments> responder)
         {
-            int threadReference = responder.Arguments.ThreadId;
-            int startFrame = responder.Arguments.StartFrame.GetValueOrDefault(0);
-            int levels = responder.Arguments.Levels.GetValueOrDefault(0);
+            responder.SetError(new ProtocolException(AD7Resources.Error_NotImplementedSetNextStatement));
+        }
 
-            StackTraceResponse response = new StackTraceResponse()
+        protected override void HandleGotoTargetsRequestAsync(IRequestResponder<GotoTargetsArguments, GotoTargetsResponse> responder)
+        {
+            var response = new GotoTargetsResponse();
+
+            var source = responder.Arguments.Source;
+
+            // Virtual documents don't have paths
+            if (source.Path == null)
             {
-                TotalFrames = 0
-            };
+                responder.SetResponse(response);
+                return;
+            }
 
-            // Make sure we are stopped and receiving valid input or else return an empty stack trace
-            if (m_isStopped && startFrame >= 0 && levels >= 0)
+            try
             {
-                ThreadFrameEnumInfo frameEnumInfo;
-                if (!m_threadFrameEnumInfos.TryGetValue(threadReference, out frameEnumInfo))
+                string convertedPath = m_pathConverter.ConvertClientPathToDebugger(source.Path);
+                int line = m_pathConverter.ConvertClientLineToDebugger(responder.Arguments.Line);
+                var docPos = new AD7DocumentPosition(m_sessionConfig, convertedPath, line);
+
+                var targets = new List<GotoTarget>();
+
+                IEnumDebugCodeContexts2 codeContextsEnum;
+                if (m_program.EnumCodeContexts(docPos, out codeContextsEnum) == HRConstants.S_OK)
                 {
-                    IDebugThread2 thread;
-                    lock (m_threads)
+                    var codeContexts = new IDebugCodeContext2[1];
+                    uint nProps = 0;
+                    while (codeContextsEnum.Next(1, codeContexts, ref nProps) == HRConstants.S_OK)
                     {
-                        if (m_threads.TryGetValue(threadReference, out thread))
+                        var codeContext = codeContexts[0];
+
+                        string contextName;
+                        codeContext.GetName(out contextName);
+
+                        line = responder.Arguments.Line;
+                        IDebugDocumentContext2 documentContext;
+                        if (codeContext.GetDocumentContext(out documentContext) == HRConstants.S_OK)
                         {
-                            var flags = enum_FRAMEINFO_FLAGS.FIF_FRAME |   // need a frame object
-                                enum_FRAMEINFO_FLAGS.FIF_FUNCNAME |        // need a function name
-                                enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_MODULE | // with the module specified
-                                enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_ARGS |   // with argument names and types
-                                enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_ARGS_TYPES |
-                                enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_ARGS_NAMES |
-                                enum_FRAMEINFO_FLAGS.FIF_FLAGS;
-
-                            IEnumDebugFrameInfo2 frameEnum;
-                            thread.EnumFrameInfo(flags, Constants.EvaluationRadix, out frameEnum);
-                            uint totalFrames;
-                            frameEnum.GetCount(out totalFrames);
-
-                            frameEnumInfo = new ThreadFrameEnumInfo(frameEnum, totalFrames);
-                            m_threadFrameEnumInfos.Add(threadReference, frameEnumInfo);
-                        }
-                    }
-                }
-
-                if (startFrame < frameEnumInfo.TotalFrames)
-                {
-                    if (startFrame != frameEnumInfo.CurrentPosition)
-                    {
-                        frameEnumInfo.FrameEnum.Reset();
-                        frameEnumInfo.CurrentPosition = (uint)startFrame;
-
-                        if (startFrame > 0)
-                        {
-                            frameEnumInfo.FrameEnum.Skip((uint)startFrame);
-                        }
-                    }
-
-                    if (levels == 0)
-                    {
-                        // take the rest of the stack frames
-                        levels = (int)frameEnumInfo.TotalFrames - startFrame;
-                    }
-                    else
-                    {
-                        levels = Math.Min((int)frameEnumInfo.TotalFrames - startFrame, levels);
-                    }
-
-                    FRAMEINFO[] frameInfoArray = new FRAMEINFO[levels];
-                    uint framesFetched = 0;
-                    frameEnumInfo.FrameEnum.Next((uint)frameInfoArray.Length, frameInfoArray, ref framesFetched);
-                    frameEnumInfo.CurrentPosition += framesFetched;
-
-                    for (int i = 0; i < framesFetched; i++)
-                    {
-                        // TODO: annotated frames?
-                        var frameInfo = frameInfoArray[i];
-                        IDebugStackFrame2 frame = frameInfo.m_pFrame;
-
-                        int frameReference = 0;
-                        TextPositionTuple textPosition = TextPositionTuple.Nil;
-
-                        if (frame != null)
-                        {
-                            frameReference = m_frameHandles.Create(frame);
-                            textPosition = TextPositionTuple.GetTextPositionOfFrame(m_pathConverter, frame) ?? TextPositionTuple.Nil;
+                            var startPos = new TEXT_POSITION[1];
+                            var endPos = new TEXT_POSITION[1];
+                            if (documentContext.GetStatementRange(startPos, endPos) == HRConstants.S_OK)
+                                line = m_pathConverter.ConvertDebuggerLineToClient((int)startPos[0].dwLine);
                         }
 
-                        response.StackFrames.Add(new ProtocolMessages.StackFrame()
+                        string instructionPointerReference = null;
+                        CONTEXT_INFO[] contextInfo = new CONTEXT_INFO[1];
+                        if (codeContext.GetInfo(enum_CONTEXT_INFO_FIELDS.CIF_ADDRESS, contextInfo) == HRConstants.S_OK &&
+                            contextInfo[0].dwFields.HasFlag(enum_CONTEXT_INFO_FIELDS.CIF_ADDRESS))
                         {
-                            Id = frameReference,
-                            Name = frameInfo.m_bstrFuncName,
-                            Source = textPosition.Source,
-                            Line = textPosition.Line,
-                            Column = textPosition.Column
+                            instructionPointerReference = contextInfo[0].bstrAddress;
+                        }
+
+                        int codeContextId = m_nextContextId++;
+                        m_gotoCodeContexts.TryAdd(codeContextId, codeContext);
+
+                        targets.Add(new GotoTarget()
+                        {
+                            Id = codeContextId,
+                            Label = contextName,
+                            Line = line,
+                            InstructionPointerReference = instructionPointerReference
                         });
                     }
-
-                    response.TotalFrames = (int)frameEnumInfo.TotalFrames;
                 }
+
+                response.Targets = targets;
+            }
+            catch (AD7Exception e)
+            {
+                responder.SetError(new ProtocolException(e.Message));
+                return;
             }
 
             responder.SetResponse(response);
+        }
+
+        protected override async void HandleStackTraceRequestAsync(IRequestResponder<StackTraceArguments, StackTraceResponse> responder)
+        {
+            try
+            {
+                int threadReference = responder.Arguments.ThreadId;
+                int startFrame = responder.Arguments.StartFrame.GetValueOrDefault(0);
+                int levels = responder.Arguments.Levels.GetValueOrDefault(0);
+
+                var response = new StackTraceResponse()
+                {
+                    TotalFrames = 0
+                };
+
+                // Make sure we are stopped and receiving valid input or else return an empty stack trace
+                if (!m_isStopped || startFrame < 0 || levels < 0)
+                {
+                    responder.SetResponse(response);
+                    return;
+                }
+
+                ThreadFrameEnumInfo frameEnumInfo = null;
+                IDebugThread2 thread;
+                lock (m_threads)
+                {
+                    if (!m_threads.TryGetValue(threadReference, out thread))
+                    {
+                        // Invalid thread specified
+                        responder.SetError(new ProtocolException(String.Format(CultureInfo.CurrentCulture, AD7Resources.Error_PropertyInvalid, StackTraceRequest.RequestType, "threadId")));
+                        return;
+                    }
+
+                    enum_FRAMEINFO_FLAGS flags = enum_FRAMEINFO_FLAGS.FIF_FUNCNAME | // need a function name
+                                                    enum_FRAMEINFO_FLAGS.FIF_FRAME | // need a frame object
+                                                    enum_FRAMEINFO_FLAGS.FIF_FLAGS |
+                                                    enum_FRAMEINFO_FLAGS.FIF_DEBUG_MODULEP;
+
+                    uint radix = Constants.EvaluationRadix;
+
+                    if (responder.Arguments.Format != null)
+                    {
+                        StackFrameFormat format = responder.Arguments.Format;
+
+                        if (format.Hex == true)
+                        {
+                            radix = 16;
+                        }
+
+                        if (format.Line == true)
+                        {
+                            flags |= enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_LINES;
+                        }
+
+                        if (format.Module == true)
+                        {
+                            flags |= enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_MODULE;
+                        }
+
+                        if (format.Parameters == true)
+                        {
+                            flags |= enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_ARGS;
+                        }
+
+                        if (format.ParameterNames == true)
+                        {
+                            flags |= enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_ARGS_NAMES;
+                        }
+
+                        if (format.ParameterTypes == true)
+                        {
+                            flags |= enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_ARGS_TYPES;
+                        }
+
+                        if (format.ParameterValues == true)
+                        {
+                            flags |= enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_ARGS_VALUES;
+                        }
+                    }
+                    else
+                    {
+                        // No formatting flags provided in the request - use the default format, which includes the module name and argument names / types
+                        flags |= enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_MODULE |
+                                    enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_ARGS |
+                                    enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_ARGS_TYPES |
+                                    enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_ARGS_NAMES;
+                    }
+
+                    if (m_settingsCallback != null)
+                    {
+                        // MIEngine generally gets the radix from IDebugSettingsCallback110 rather than using the radix passed
+                        m_settingsCallback.Radix = radix;
+                    }
+
+                    ErrorBuilder eb = new ErrorBuilder(() => AD7Resources.Error_Scenario_StackTrace);
+
+                    try
+                    {
+                        eb.CheckHR(thread.EnumFrameInfo(flags, radix, out IEnumDebugFrameInfo2 frameEnum));
+                        eb.CheckHR(frameEnum.GetCount(out uint totalFrames));
+
+                        frameEnumInfo = new ThreadFrameEnumInfo(frameEnum, totalFrames);
+                    }
+                    catch (AD7Exception ex)
+                    {
+                        responder.SetError(new ProtocolException(ex.Message, ex));
+                        return;
+                    }
+                }
+
+                if (startFrame >= frameEnumInfo.TotalFrames)
+                {
+                    responder.SetResponse(response);
+                    return;
+                }
+
+                if (startFrame != frameEnumInfo.CurrentPosition)
+                {
+                    frameEnumInfo.FrameEnum.Reset();
+                    frameEnumInfo.CurrentPosition = (uint)startFrame;
+
+                    if (startFrame > 0)
+                    {
+                        frameEnumInfo.FrameEnum.Skip((uint)startFrame);
+                    }
+                }
+
+                if (levels == 0)
+                {
+                    // take the rest of the stack frames
+                    levels = (int)frameEnumInfo.TotalFrames - startFrame;
+                }
+                else
+                {
+                    levels = Math.Min((int)frameEnumInfo.TotalFrames - startFrame, levels);
+                }
+
+                var frameInfoArray = new FRAMEINFO[levels];
+                uint framesFetched = 0;
+                frameEnumInfo.FrameEnum.Next((uint)frameInfoArray.Length, frameInfoArray, ref framesFetched);
+                frameEnumInfo.CurrentPosition += framesFetched;
+
+                for (int i = 0; i < framesFetched; i++)
+                {
+                    // TODO: annotated frames?
+                    var frameInfo = frameInfoArray[i];
+                    IDebugStackFrame2 frame = frameInfo.m_pFrame;
+
+                    int frameReference = 0;
+                    TextPositionTuple textPosition = TextPositionTuple.Nil;
+                    IDebugCodeContext2 memoryAddress = null;
+
+                    if (frame != null)
+                    {
+                        frameReference = m_frameHandles.Create(frame);
+                        textPosition = TextPositionTuple.GetTextPositionOfFrame(m_pathConverter, frame) ?? TextPositionTuple.Nil;
+                        frame.GetCodeContext(out memoryAddress);
+                    }
+
+                    int? moduleId = null;
+                    IDebugModule2 module = frameInfo.m_pModule;
+                    if (module != null)
+                    {
+                        lock (m_moduleMap)
+                        {
+                            if (m_moduleMap.TryGetValue(module, out int mapModuleId))
+                            {
+                                moduleId = mapModuleId;
+                            }
+                        }
+                    }
+
+                    string instructionPointerReference = null;
+                    var contextInfo = new CONTEXT_INFO[1];
+                    if (memoryAddress?.GetInfo(enum_CONTEXT_INFO_FIELDS.CIF_ADDRESS, contextInfo) == HRConstants.S_OK && contextInfo[0].dwFields.HasFlag(enum_CONTEXT_INFO_FIELDS.CIF_ADDRESS))
+                    {
+                        instructionPointerReference = contextInfo[0].bstrAddress;
+                    }
+
+                    response.StackFrames.Add(new ProtocolMessages.StackFrame()
+                    {
+                        Id = frameReference,
+                        Name = frameInfo.m_bstrFuncName,
+                        Source = textPosition.Source,
+                        Line = textPosition.Line,
+                        Column = textPosition.Column,
+                        ModuleId = moduleId,
+                        InstructionPointerReference = instructionPointerReference
+                    });
+                }
+
+                if (!IsClientVS)
+                {
+                    var cancellationTokenSource = new CancellationTokenSource();
+                    try
+                    {
+                        CancellationToken cancellationToken = cancellationTokenSource.Token;
+                        var frameTasks = response.StackFrames.Select(frame => Task.Run(() =>
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
+                            if (frame.Source != null && !File.Exists(frame.Source.Path))
+                            {
+                                cancellationToken.ThrowIfCancellationRequested();
+                                // mark the stack frame to be skipped by default
+                                frame.Source.PresentationHint = Source.PresentationHintValue.Deemphasize;
+                            }
+                        }));
+
+                        Task allFramesComplete = Task.WhenAll(frameTasks);
+                        Task timeoutTask = Task.Delay(1000, cancellationToken);
+                        try
+                        {
+                            await Task.WhenAny(allFramesComplete, timeoutTask);
+                        }
+                        catch (Exception e)
+                        {
+                            Debug.Fail("Ignoring exception computing frame state: " + e.ToString());
+                        }
+                    }
+                    finally
+                    {
+                        cancellationTokenSource.Cancel();
+                        cancellationTokenSource.Dispose();
+                    }
+                }
+
+                response.TotalFrames = (int)frameEnumInfo.TotalFrames;
+
+                responder.SetResponse(response);
+            }
+            catch (Exception e)
+            {
+                responder.SetError(new ProtocolException(e.Message));
+            }
         }
 
         protected override void HandleScopesRequestAsync(IRequestResponder<ScopesArguments, ScopesResponse> responder)
@@ -1271,23 +1868,29 @@ namespace OpenDebugAD7
             }
 
             IDebugStackFrame2 frame;
-            if (m_frameHandles.TryGet(frameReference, out frame))
+            if (!m_frameHandles.TryGet(frameReference, out frame))
             {
-                uint n;
-                IEnumDebugPropertyInfo2 varEnum;
-                if (frame.EnumProperties(enum_DEBUGPROP_INFO_FLAGS.DEBUGPROP_INFO_PROP, 10, ref s_guidFilterAllLocalsPlusArgs, 0, out n, out varEnum) == HRConstants.S_OK)
-                {
-                    if (n > 0)
-                    {
-                        response.Scopes.Add(new Scope()
-                        {
-                            Name = AD7Resources.Locals_Scope_Name,
-                            VariablesReference = m_variableManager.Create(frame),
-                            Expensive = false
-                        });
-                    }
-                }
+                responder.SetError(new ProtocolException(AD7Resources.Error_StackFrameNotFound));
+                return;
             }
+
+            response.Scopes.Add(new Scope()
+            {
+                Name = AD7Resources.Locals_Scope_Name,
+                VariablesReference = m_variableManager.Create(new VariableScope() { StackFrame = frame, Category = VariableCategory.Locals }),
+                PresentationHint = Scope.PresentationHintValue.Locals,
+                Expensive = false
+            });
+
+            // registers should always be present
+            // and it's too expensive to read all values just to add the scope
+            response.Scopes.Add(new Scope()
+            {
+                Name = AD7Resources.Registers_Scope_Name,
+                VariablesReference = m_variableManager.Create(new VariableScope() { StackFrame = frame, Category = VariableCategory.Registers }),
+                PresentationHint = Scope.PresentationHintValue.Registers,
+                Expensive = true
+            });
 
             responder.SetResponse(response);
         }
@@ -1304,67 +1907,70 @@ namespace OpenDebugAD7
                 return;
             }
 
+            uint radix = GetRadixFromValueForamt(responder.Arguments.Format);
+
             Object container;
-            if (m_variableManager.TryGet(reference, out container))
+            if (!m_variableManager.TryGet(reference, out container))
             {
-                if (container is IDebugStackFrame2)
+                responder.SetResponse(response);
+                return;
+            }
+            if (container is VariableScope variableScope)
+            {
+                response = VariablesFromFrame(variableScope, radix);
+                responder.SetResponse(response);
+                return;
+            }
+
+            if (!(container is VariableEvaluationData variableEvaluationData))
+            {
+                Debug.Assert(false, "Unexpected type in _variableHandles collection");
+                responder.SetResponse(response);
+                return;
+            }
+
+            Guid empty = Guid.Empty;
+            IDebugProperty2 property = variableEvaluationData.DebugProperty;
+            if (property.EnumChildren(variableEvaluationData.propertyInfoFlags, radix, ref empty, enum_DBG_ATTRIB_FLAGS.DBG_ATTRIB_ALL, null, Constants.EvaluationTimeout, out IEnumDebugPropertyInfo2 childEnum) == 0)
+            {
+                uint count;
+                childEnum.GetCount(out count);
+                if (count > 0)
                 {
-                    response = VariablesFromFrame(container as IDebugStackFrame2);
-                }
-                else
-                {
-                    if (container is VariableEvaluationData)
+                    DEBUG_PROPERTY_INFO[] childProperties = new DEBUG_PROPERTY_INFO[count];
+                    childEnum.Next(count, childProperties, out count);
+
+                    if (count > 1)
                     {
-                        VariableEvaluationData variableEvaluationData = (VariableEvaluationData)container;
-                        IDebugProperty2 property = variableEvaluationData.DebugProperty;
-
-                        Guid empty = Guid.Empty;
-                        IEnumDebugPropertyInfo2 childEnum;
-                        if (property.EnumChildren(variableEvaluationData.propertyInfoFlags, Constants.EvaluationRadix, ref empty, enum_DBG_ATTRIB_FLAGS.DBG_ATTRIB_ALL, null, Constants.EvaluationTimeout, out childEnum) == 0)
+                        // Ensure that items with duplicate names such as multiple anonymous unions will display in VS Code
+                        var variablesDictionary = new Dictionary<string, Variable>();
+                        for (uint c = 0; c < count; c++)
                         {
-                            uint count;
-                            childEnum.GetCount(out count);
-                            if (count > 0)
+                            string memoryReference = AD7Utils.GetMemoryReferenceFromIDebugProperty(childProperties[c].pProperty);
+                            var variable = m_variableManager.CreateVariable(ref childProperties[c], variableEvaluationData.propertyInfoFlags, memoryReference);
+                            int uniqueCounter = 2;
+                            string variableName = variable.Name;
+                            while (variablesDictionary.ContainsKey(variableName))
                             {
-                                DEBUG_PROPERTY_INFO[] childProperties = new DEBUG_PROPERTY_INFO[count];
-                                childEnum.Next(count, childProperties, out count);
-
-                                if (count > 1)
-                                {
-                                    // Ensure that items with duplicate names such as multiple anonymous unions will display in VS Code
-                                    Dictionary<string, Variable> variablesDictionary = new Dictionary<string, Variable>();
-                                    for (uint c = 0; c < count; c++)
-                                    {
-                                        var variable = m_variableManager.CreateVariable(ref childProperties[c], variableEvaluationData.propertyInfoFlags);
-                                        int uniqueCounter = 2;
-                                        string variableName = variable.Name;
-                                        string variableNameFormat = "{0} #{1}";
-                                        while (variablesDictionary.ContainsKey(variableName))
-                                        {
-                                            variableName = String.Format(CultureInfo.InvariantCulture, variableNameFormat, variable.Name, uniqueCounter++);
-                                        }
-
-                                        variable.Name = variableName;
-                                        variablesDictionary[variableName] = variable;
-                                    }
-
-                                    response.Variables.AddRange(variablesDictionary.Values);
-                                }
-                                else
-                                {
-                                    // Shortcut when no duplicate can exist
-                                    response.Variables.Add(m_variableManager.CreateVariable(ref childProperties[0], variableEvaluationData.propertyInfoFlags));
-                                }
+                                variableName = String.Format(CultureInfo.InvariantCulture, VariableManager.VariableNameFormat, variable.Name, uniqueCounter++);
                             }
+                            variable.Name = variableName;
+                            variablesDictionary[variableName] = variable;
+                            m_variableManager.AddVariableProperty((reference, variableName), childProperties[c].pProperty);
                         }
+
+                        response.Variables.AddRange(variablesDictionary.Values);
                     }
                     else
                     {
-                        Debug.Assert(false, "Unexpected type in _variableHandles collection");
+                        string memoryReference = AD7Utils.GetMemoryReferenceFromIDebugProperty(childProperties[0].pProperty);
+                        // Shortcut when no duplicate can exist
+                        Variable variable = m_variableManager.CreateVariable(ref childProperties[0], variableEvaluationData.propertyInfoFlags, memoryReference);
+                        response.Variables.Add(variable);
+                        m_variableManager.AddVariableProperty((reference, variable.Name), childProperties[0].pProperty);
                     }
                 }
             }
-
             responder.SetResponse(response);
         }
 
@@ -1392,15 +1998,25 @@ namespace OpenDebugAD7
             IDebugProperty2 property = null;
             IEnumDebugPropertyInfo2 varEnum = null;
             int hr = HRConstants.E_FAIL;
-            if (container is IDebugStackFrame2)
+            if (container is VariableScope variableScope)
             {
-                uint n;
-                hr = ((IDebugStackFrame2)container).EnumProperties(
-                    enum_DEBUGPROP_INFO_FLAGS.DEBUGPROP_INFO_PROP,
+                Guid filter = Guid.Empty;
+                switch (variableScope.Category)
+                {
+                case VariableCategory.Locals:
+                    filter = s_guidFilterAllLocalsPlusArgs;
+                    break;
+                case VariableCategory.Registers:
+                    filter = s_guidFilterRegisters;
+                    break;
+                }
+
+                hr = variableScope.StackFrame.EnumProperties(
+                    flags,
                     Constants.EvaluationRadix,
-                    ref s_guidFilterAllLocalsPlusArgs,
+                    ref filter,
                     Constants.EvaluationTimeout,
-                    out n,
+                    out _,
                     out varEnum);
             }
             else if (container is VariableEvaluationData)
@@ -1413,7 +2029,7 @@ namespace OpenDebugAD7
                 }
 
                 hr = debugProperty.EnumChildren(
-                    enum_DEBUGPROP_INFO_FLAGS.DEBUGPROP_INFO_PROP,
+                    enum_DEBUGPROP_INFO_FLAGS.DEBUGPROP_INFO_PROP | enum_DEBUGPROP_INFO_FLAGS.DEBUGPROP_INFO_NAME | enum_DEBUGPROP_INFO_FLAGS.DEBUGPROP_INFO_ATTRIB,
                     Constants.EvaluationRadix,
                     ref s_guidFilterAllLocalsPlusArgs,
                     enum_DBG_ATTRIB_FLAGS.DBG_ATTRIB_ALL,
@@ -1428,20 +2044,17 @@ namespace OpenDebugAD7
                 uint nProps;
                 while (varEnum.Next(1, props, out nProps) == HRConstants.S_OK)
                 {
-                    DEBUG_PROPERTY_INFO[] propertyInfo = new DEBUG_PROPERTY_INFO[1];
-                    props[0].pProperty.GetPropertyInfo(flags, Constants.EvaluationRadix, Constants.EvaluationTimeout, null, 0, propertyInfo);
-
-                    if (propertyInfo[0].bstrName == name)
+                    if (props[0].bstrName == name)
                     {
                         // Make sure we can assign to this variable.
-                        if (propertyInfo[0].dwAttrib.HasFlag(enum_DBG_ATTRIB_FLAGS.DBG_ATTRIB_VALUE_READONLY))
+                        if (props[0].dwAttrib.HasFlag(enum_DBG_ATTRIB_FLAGS.DBG_ATTRIB_VALUE_READONLY))
                         {
                             string message = string.Format(CultureInfo.CurrentCulture, AD7Resources.Error_VariableIsReadonly, name);
                             responder.SetError(new ProtocolException(message, new Message(1107, message)));
                             return;
                         }
 
-                        property = propertyInfo[0].pProperty;
+                        property = props[0].pProperty;
                         break;
                     }
                 }
@@ -1497,14 +2110,158 @@ namespace OpenDebugAD7
             }
 
             // iterate over the collection asking the engine for the name
-            foreach (var pair in threads)
+            foreach ((int id, IDebugThread2 thread) in threads)
             {
-                string name;
-                pair.Value.GetName(out name);
-                response.Threads.Add(new OpenDebugThread(pair.Key, name));
+                if (thread != null)
+                {
+                    if (thread.GetName(out string name) == HRConstants.S_OK)
+                    {
+                        // Append the thread id as a suffix unless the engine is already including it
+                        if (thread.GetThreadId(out uint threadId) == HRConstants.S_OK)
+                        {
+                            string threadIdDecimal = threadId.ToString(CultureInfo.InvariantCulture);
+                            if (!Regex.IsMatch(name, string.Concat("\b", threadIdDecimal, "\b")))
+                            {
+                                name = string.Concat(name, " [", threadIdDecimal, "]");
+                            }
+                        }
+                        else
+                        {
+                            // We did not get a thread id. Skip adding to list.
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        name = null;
+                    }
+
+                    response.Threads.Add(new OpenDebugThread(id, name));
+                }
             }
 
             responder.SetResponse(response);
+        }
+
+        private ProtocolMessages.Module ConvertToModule(in IDebugModule2 module, int moduleId)
+        {
+            var debugModuleInfos = new MODULE_INFO[1];
+            if (module.GetInfo(enum_MODULE_INFO_FIELDS.MIF_ALLFIELDS, debugModuleInfos) == HRConstants.S_OK)
+            {
+                var debugModuleInfo = debugModuleInfos[0];
+
+                var path = debugModuleInfo.m_bstrUrl;
+                var vsTimestampUTC = (debugModuleInfo.dwValidFields & enum_MODULE_INFO_FIELDS.MIF_TIMESTAMP) != 0 ? FileTimeToPosix(debugModuleInfo.m_TimeStamp).ToString(CultureInfo.InvariantCulture) : null;
+                var version = debugModuleInfo.m_bstrVersion;
+                var vsLoadAddress = debugModuleInfo.m_addrLoadAddress.ToString(CultureInfo.InvariantCulture);
+                var vsPreferredLoadAddress = debugModuleInfo.m_addrPreferredLoadAddress.ToString(CultureInfo.InvariantCulture);
+                var vsModuleSize = (int)debugModuleInfo.m_dwSize;
+                var vsLoadOrder = (int)debugModuleInfo.m_dwLoadOrder;
+                var symbolFilePath = debugModuleInfo.m_bstrUrlSymbolLocation;
+                var symbolStatus = debugModuleInfo.m_bstrDebugMessage;
+                var vsIs64Bit = (debugModuleInfo.m_dwModuleFlags & enum_MODULE_FLAGS.MODULE_FLAG_64BIT) != 0;
+
+                ProtocolMessages.Module mod = new ProtocolMessages.Module(moduleId, debugModuleInfo.m_bstrName)
+                {
+                    Path = path, VsTimestampUTC = vsTimestampUTC, Version = version, VsLoadAddress = vsLoadAddress, VsPreferredLoadAddress = vsPreferredLoadAddress,
+                    VsModuleSize = vsModuleSize, VsLoadOrder = vsLoadOrder, SymbolFilePath = symbolFilePath, SymbolStatus = symbolStatus, VsIs64Bit = vsIs64Bit
+                };
+
+                // IsOptimized and IsUserCode are not set by gdb
+                if((debugModuleInfo.m_dwModuleFlags & enum_MODULE_FLAGS.MODULE_FLAG_OPTIMIZED) != 0)
+                {
+                    mod.IsOptimized = true;
+                } else if ((debugModuleInfo.m_dwModuleFlags & enum_MODULE_FLAGS.MODULE_FLAG_UNOPTIMIZED) != 0)
+                {
+                    mod.IsOptimized = false;
+                }
+                if (module is IDebugModule3 module3 && module3.IsUserCode(out int isUserCode) == HRConstants.S_OK)
+                {
+                    if (isUserCode == 0)
+                    {
+                        mod.IsUserCode = false;
+                    }
+                    else
+                    {
+                        mod.IsUserCode = true;
+                    }
+                }
+
+                return mod;
+            }
+            return null;
+        }
+
+        protected override void HandleModulesRequestAsync(IRequestResponder<ModulesArguments, ModulesResponse> responder)
+        {
+            var response = new ModulesResponse();
+            IEnumDebugModules2 enumDebugModules;
+            if (m_program.EnumModules(out enumDebugModules) == HRConstants.S_OK)
+            {
+                var debugModules = new IDebugModule2[1];
+                uint numReturned = 0;
+                while (enumDebugModules.Next(1, debugModules, ref numReturned) == HRConstants.S_OK && numReturned == 1)
+                {
+                    IDebugModule2 module = debugModules[0];
+                    int moduleId;
+                    lock (m_moduleMap)
+                    {
+                        if (!m_moduleMap.TryGetValue(module, out moduleId))
+                        {
+                            Debug.Fail("Missing ModuleLoadEvent?");
+                            continue;
+                        }
+                    }
+                    var mod = ConvertToModule(module, moduleId);
+                    response.Modules.Add(mod);
+                }
+            }
+            responder.SetResponse(response);
+        }
+
+        protected override void HandleDisassembleRequestAsync(IRequestResponder<DisassembleArguments, DisassembleResponse> responder)
+        {
+            DisassembleResponse response = new DisassembleResponse();
+            DisassembleArguments disassembleArguments = responder.Arguments;
+            Debug.Assert(!string.IsNullOrEmpty(disassembleArguments.MemoryReference));
+            try
+            {
+                ErrorBuilder eb = new ErrorBuilder(() => AD7Resources.Error_Scenario_Disassemble);
+
+                eb.CheckHR(GetMemoryContext(disassembleArguments.MemoryReference, disassembleArguments.Offset, out IDebugMemoryContext2 memoryContext, out ulong address));
+                IDebugCodeContext2 codeContext = memoryContext as IDebugCodeContext2;
+                if (codeContext == null)
+                {
+                    eb.CheckHR(HRConstants.E_NOTIMPL);
+                }
+
+                eb.CheckHR(m_program.GetDisassemblyStream(enum_DISASSEMBLY_STREAM_SCOPE.DSS_ALL, codeContext, out IDebugDisassemblyStream2 disassemblyStream));
+                if (disassembleArguments.InstructionOffset.GetValueOrDefault(0) != 0)
+                {
+                    eb.CheckHR(disassemblyStream.Seek(enum_SEEK_START.SEEK_START_BEGIN, codeContext, address, (long)disassembleArguments.InstructionOffset));
+                }
+
+                DisassemblyData[] prgDisassembly = new DisassemblyData[disassembleArguments.InstructionCount];
+                eb.CheckHR(disassemblyStream.Read((uint)disassembleArguments.InstructionCount, enum_DISASSEMBLY_STREAM_FIELDS.DSF_ALL, out uint pdwInstructionsRead, prgDisassembly));
+                Debug.Assert(disassembleArguments.InstructionCount == pdwInstructionsRead);
+                foreach (DisassemblyData data in prgDisassembly)
+                {
+                    if (data.dwFlags.HasFlag(enum_DISASSEMBLY_FLAGS.DF_HASSOURCE))
+                    {
+                        Debug.Fail("Warning: engine supports mixed instruction/source disassembly, but OpenDebugAD7 does not.");
+                    }
+                    DisassembledInstruction instruction = new DisassembledInstruction() {
+                        Address = data.bstrAddress,
+                        InstructionBytes = data.bstrCodeBytes,
+                        Instruction = data.bstrOpcode,
+                        Symbol = data.bstrSymbol
+                    };
+                    response.Instructions.Add(instruction);
+                }
+                responder.SetResponse(response);
+            } catch (Exception e) {
+                responder.SetError(new ProtocolException(e.Message));
+            }
         }
 
         protected override void HandleSetBreakpointsRequestAsync(IRequestResponder<SetBreakpointsArguments, SetBreakpointsResponse> responder)
@@ -1590,6 +2347,52 @@ namespace OpenDebugAD7
                     var resBreakpoints = new List<Breakpoint>();
                     foreach (var bp in breakpoints)
                     {
+                        if (dict.ContainsKey(bp.Line))
+                        {
+                            // already created
+                            IDebugBreakpointRequest2 breakpointRequest;
+                            if (dict[bp.Line].GetBreakpointRequest(out breakpointRequest) == 0 && 
+                                breakpointRequest is AD7BreakPointRequest ad7BPRequest)
+                            {
+                                // Check to see if this breakpoint has a condition that has changed.
+                                if (!StringComparer.Ordinal.Equals(ad7BPRequest.Condition, bp.Condition))
+                                {
+                                    // Condition has been modified. Delete breakpoint so it will be recreated with the updated condition.
+                                    var toRemove = dict[bp.Line];
+                                    toRemove.Delete();
+                                    dict.Remove(bp.Line);
+                                }
+                                // Check to see if tracepoint changed
+                                else if (!StringComparer.Ordinal.Equals(ad7BPRequest.LogMessage, bp.LogMessage))
+                                {
+                                    ad7BPRequest.ClearTracepoint();
+                                    var toRemove = dict[bp.Line];
+                                    toRemove.Delete();
+                                    dict.Remove(bp.Line);
+                                }
+                                else
+                                {
+                                    if (ad7BPRequest.BindResult != null)
+                                    {
+                                        // use the breakpoint created from IDebugBreakpointErrorEvent2 or IDebugBreakpointBoundEvent2
+                                        resBreakpoints.Add(ad7BPRequest.BindResult);
+                                    }
+                                    else
+                                    {
+                                        resBreakpoints.Add(new Breakpoint()
+                                        {
+                                            Id = (int)ad7BPRequest.Id,
+                                            Verified = true,
+                                            Line = bp.Line
+                                        });
+                                    }
+                                    continue;
+                                }
+                            }
+                        }
+
+
+                        // Create a new breakpoint
                         if (!dict.ContainsKey(bp.Line))
                         {
                             IDebugPendingBreakpoint2 pendingBp;
@@ -1597,16 +2400,37 @@ namespace OpenDebugAD7
 
                             try
                             {
-                                eb.CheckHR(m_engine.CreatePendingBreakpoint(pBPRequest, out pendingBp));
-                                eb.CheckHR(pendingBp.Bind());
-
-                                dict[bp.Line] = pendingBp;
-                                resBreakpoints.Add(new Breakpoint()
+                                bool verified = true;
+                                if (!string.IsNullOrEmpty(bp.LogMessage))
                                 {
-                                    Id = (int)pBPRequest.Id,
-                                    Verified = true,
-                                    Line = bp.Line
-                                });
+                                    // Make sure tracepoint is valid.
+                                    verified = pBPRequest.SetLogMessage(bp.LogMessage);
+                                }
+
+                                if (verified)
+                                {
+                                    eb.CheckHR(m_engine.CreatePendingBreakpoint(pBPRequest, out pendingBp));
+                                    eb.CheckHR(pendingBp.Bind());
+
+                                    dict[bp.Line] = pendingBp;
+
+                                    resBreakpoints.Add(new Breakpoint()
+                                    {
+                                        Id = (int)pBPRequest.Id,
+                                        Verified = verified,
+                                        Line = bp.Line
+                                    });
+                                }
+                                else
+                                {
+                                    resBreakpoints.Add(new Breakpoint()
+                                    {
+                                        Id = (int)pBPRequest.Id,
+                                        Verified = verified,
+                                        Line = bp.Line,
+                                        Message = string.Format(CultureInfo.CurrentCulture, AD7Resources.Error_UnableToParseLogMessage)
+                                    });
+                                }
                             }
                             catch (Exception e)
                             {
@@ -1623,28 +2447,6 @@ namespace OpenDebugAD7
                                     Line = bp.Line,
                                     Message = eb.GetMessageForException(e)
                                 });
-                            }
-                        }
-                        else
-                        {   // already created
-                            IDebugBreakpointRequest2 breakpointRequest;
-                            if (dict[bp.Line].GetBreakpointRequest(out breakpointRequest) == 0)
-                            {
-                                var ad7BPRequest = (AD7BreakPointRequest)breakpointRequest;
-                                if (ad7BPRequest.BindResult != null)
-                                {
-                                    // use the breakpoint created from IDebugBreakpointErrorEvent2 or IDebugBreakpointBoundEvent2
-                                    resBreakpoints.Add(ad7BPRequest.BindResult);
-                                }
-                                else
-                                {
-                                    resBreakpoints.Add(new Breakpoint()
-                                    {
-                                        Id = (int)ad7BPRequest.Id,
-                                        Verified = true,
-                                        Line = bp.Line
-                                    });
-                                }
                             }
                         }
                     }
@@ -1678,38 +2480,298 @@ namespace OpenDebugAD7
             responder.SetResponse(response);
         }
 
-        protected override void HandleSetExceptionBreakpointsRequestAsync(IRequestResponder<SetExceptionBreakpointsArguments> responder)
+        protected override void HandleDataBreakpointInfoRequestAsync(IRequestResponder<DataBreakpointInfoArguments, DataBreakpointInfoResponse> responder)
         {
-            List<string> filter = responder.Arguments.Filters;
-            if (m_engineConfiguration.ExceptionSettings.Categories.Count > 0)
+            if (responder.Arguments.Name == null)
             {
-                if (filter == null || filter.Count == 0)
-                {
-                    SetAllExceptions(enum_EXCEPTION_STATE.EXCEPTION_STOP_SECOND_CHANCE);
-                }
-                else if (filter.Contains(ExceptionBreakpointFilter.Filter_All))
-                {
-                    enum_EXCEPTION_STATE state = enum_EXCEPTION_STATE.EXCEPTION_STOP_SECOND_CHANCE | enum_EXCEPTION_STATE.EXCEPTION_STOP_FIRST_CHANCE | enum_EXCEPTION_STATE.EXCEPTION_STOP_USER_FIRST_CHANCE;
+                responder.SetError(new ProtocolException("DataBreakpointInfo failed: Missing 'Name'."));
+                return;
+            }
 
-                    if (filter.Contains(ExceptionBreakpointFilter.Filter_UserUnhandled))
+            DataBreakpointInfoResponse response = new DataBreakpointInfoResponse();
+
+            try
+            {
+                string name = responder.Arguments.Name;
+                IDebugProperty2 property = null;
+                string errorMessage = null;
+                ErrorBuilder eb = new ErrorBuilder(() => AD7Resources.Error_DataBreakpointInfoFail);
+                int hr = HRConstants.S_OK;
+
+                // Did our request come with a parent object?
+                if (responder.Arguments.VariablesReference.HasValue)
+                {
+                    int variableReference = responder.Arguments.VariablesReference.Value;
+                    if (!m_variableManager.TryGet(variableReference, out object variableObj))
                     {
-                        state |= enum_EXCEPTION_STATE.EXCEPTION_STOP_USER_UNCAUGHT;
+                        responder.SetError(new ProtocolException("DataBreakpointInfo failed: Invalid 'VariableReference'."));
+                        return;
                     }
 
-                    SetAllExceptions(state);
+                    if (variableObj is VariableScope varScope)
+                    {
+                        // We have a scope object. We can grab a frame for evaluation from this
+                        IDebugStackFrame2 frame = varScope.StackFrame;
+                        m_variableManager.TryGetProperty((frame, name), out property);
+                    }
+                    else if (variableObj is VariableEvaluationData)
+                    {
+                        // We have a variable parent object.
+                        m_variableManager.TryGetProperty((variableReference, name), out property);
+                    }
                 }
                 else
                 {
-                    if (filter.Contains(ExceptionBreakpointFilter.Filter_UserUnhandled))
+                    // We don't have a parent object. Default to using top stack frame
+                    if (m_frameHandles == null || !m_frameHandles.TryGetFirst(out IDebugStackFrame2 frame))
                     {
-                        SetAllExceptions(enum_EXCEPTION_STATE.EXCEPTION_STOP_SECOND_CHANCE | enum_EXCEPTION_STATE.EXCEPTION_STOP_USER_UNCAUGHT);
+                        throw new ProtocolException(string.Format(CultureInfo.CurrentCulture, AD7Resources.Error_DataBreakpointInfoFail, AD7Resources.Error_NoParentObject));
                     }
                     else
                     {
-                        // TODO: once VS Code has UI to break on more than just 'uncaught' and 'all' we will need to enhance this with more features
-                        Debug.Fail("Unexpected exception filter string");
+                        m_variableManager.TryGetProperty((frame, name), out property);
                     }
                 }
+
+                // If we've found a valid child property to set the data breakpoint on, get the address/size and return the DataId.
+                if (property != null && property is IDebugProperty160 property160)
+                {
+                    hr = property160.GetDataBreakpointInfo160(out string address, out uint size, out string displayName, out errorMessage);
+                    eb.CheckHR(hr);
+                    if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        throw new ProtocolException(string.Format(CultureInfo.CurrentCulture, AD7Resources.Error_DataBreakpointInfoFail, errorMessage));
+                    }
+                    else
+                    {
+                        // If we succeeded, return response that we can set a data bp.
+                        string sSize = size.ToString(CultureInfo.InvariantCulture);
+                        response.DataId = $"{address},{sSize}";
+                        response.Description = string.Format(CultureInfo.CurrentCulture, AD7Resources.DataBreakpointDisplayString, displayName, sSize);
+                        response.AccessTypes = new List<DataBreakpointAccessType>() { DataBreakpointAccessType.Write };
+                    }
+                }
+                else
+                {
+                    throw new ProtocolException(string.Format(CultureInfo.CurrentCulture, AD7Resources.Error_DataBreakpointInfoFail, AD7Resources.Error_ChildPropertyNotFound));
+                }
+
+                responder.SetResponse(response);
+            }
+            catch (Exception ex)
+            {
+                if (ex is AD7Exception ad7ex)
+                    response.Description = ad7ex.Message;
+                else if (ex is ProtocolException peEx)
+                    responder.SetError(peEx);
+                else
+                    responder.SetError(new ProtocolException(string.Format(CultureInfo.CurrentCulture, AD7Resources.Error_DataBreakpointInfoFail, "")));
+            }
+        }
+
+        protected override void HandleSetDataBreakpointsRequestAsync(IRequestResponder<SetDataBreakpointsArguments, SetDataBreakpointsResponse> responder)
+        {
+            if (responder.Arguments.Breakpoints == null)
+            {
+                responder.SetError(new ProtocolException("SetDataBreakpointRequest failed: Missing 'breakpoints'."));
+                return;
+            }
+
+            List<DataBreakpoint> breakpoints = responder.Arguments.Breakpoints;
+            SetDataBreakpointsResponse response = new SetDataBreakpointsResponse();
+            Dictionary<string, IDebugPendingBreakpoint2> newBreakpoints = new Dictionary<string, IDebugPendingBreakpoint2>();
+            ErrorBuilder eb = new ErrorBuilder(() => AD7Resources.Error_DataBreakpointInfoFail);
+
+            try
+            {
+                foreach (KeyValuePair<string, IDebugPendingBreakpoint2> b in m_dataBreakpoints)
+                {
+                    if (breakpoints.Find((p) => p.DataId == b.Key) != null)
+                    {
+                        newBreakpoints[b.Key] = b.Value;    // breakpoint still in new list
+                    }
+                    else
+                    {
+                        b.Value.Delete();   // not in new list so delete it
+                    }
+                }
+
+                foreach (DataBreakpoint b in breakpoints)
+                {
+                    if (m_dataBreakpoints.ContainsKey(b.DataId))
+                    {   // already created
+                        IDebugBreakpointRequest2 breakpointRequest;
+                        if (m_dataBreakpoints[b.DataId].GetBreakpointRequest(out breakpointRequest) == 0 &&
+                                    breakpointRequest is AD7BreakPointRequest ad7BPRequest)
+                        {
+                            // Check to see if this breakpoint has a condition that has changed.
+                            if (!StringComparer.Ordinal.Equals(ad7BPRequest.Condition, b.Condition))
+                            {
+                                // Condition has been modified. Delete breakpoint so it will be recreated with the updated condition.
+                                var toRemove = m_dataBreakpoints[b.DataId];
+                                toRemove.Delete();
+                                m_dataBreakpoints.Remove(b.DataId);
+                            }
+                            else
+                            {
+                                if (ad7BPRequest.BindResult != null)
+                                {
+                                    response.Breakpoints.Add(ad7BPRequest.BindResult);
+                                }
+                                else
+                                {
+                                    response.Breakpoints.Add(new Breakpoint()
+                                    {
+                                        Id = (int)ad7BPRequest.Id,
+                                        Verified = false,
+                                        Line = 0
+                                    });
+
+                                }
+                                continue;
+                            }
+                        }
+                    }
+
+                    // Bind the new data bp
+                    if (!m_dataBreakpoints.ContainsKey(b.DataId))
+                    {
+                        int hr = HRConstants.S_OK;
+
+                        int lastCommaIdx = b.DataId.LastIndexOf(',');
+                        if (lastCommaIdx == -1)
+                        {
+                            eb.ThrowHR(HRConstants.E_FAIL);
+                        }
+
+                        // format is "{dataId},{size}" where dataId = "{address},{displayName}"
+                        string strSize = b.DataId.Substring(lastCommaIdx + 1);
+                        string address = b.DataId.Substring(0, lastCommaIdx);
+                        uint size = uint.Parse(strSize, CultureInfo.InvariantCulture);
+
+                        AD7BreakPointRequest pBPRequest = new AD7BreakPointRequest(address, size);
+                        hr = m_engine.CreatePendingBreakpoint(pBPRequest, out IDebugPendingBreakpoint2 pendingBp);
+                        eb.CheckHR(hr);
+
+                        hr = pendingBp.Bind();
+                        if (hr == HRConstants.S_OK)
+                        {
+                            newBreakpoints[b.DataId] = pendingBp;
+                        }
+                        response.Breakpoints.Add(pBPRequest.BindResult);
+                    }
+                }
+                responder.SetResponse(response);
+            }
+            catch (Exception ex)
+            {
+                responder.SetError(new ProtocolException(ex.Message));
+            }
+            finally
+            {
+                m_dataBreakpoints = newBreakpoints;
+            }
+        }
+
+
+        protected override void HandleSetExceptionBreakpointsRequestAsync(IRequestResponder<SetExceptionBreakpointsArguments> responder)
+        {
+            HashSet<Guid> activeExceptionCategories = new HashSet<Guid>();
+
+            List<ExceptionFilterOptions> filterOptions = responder.Arguments.FilterOptions;
+            if (filterOptions != null && filterOptions.Count > 0)
+            {
+                foreach (ExceptionFilterOptions filterOption in filterOptions)
+                {
+                    ExceptionBreakpointFilter filter = m_engineConfiguration.ExceptionSettings.ExceptionBreakpointFilters.FirstOrDefault(x => x.filter == filterOption.FilterId);
+
+                    if (filter != null)
+                    {
+                        // Mark category as active
+                        activeExceptionCategories.Add(filter.categoryId);
+
+                        // Handle exceptions with a specific exception class.
+                        if (!string.IsNullOrWhiteSpace(filterOption.Condition))
+                        {
+                            string[] conditions = filterOption.Condition.Split(',');
+
+                            // Validate condition strings
+                            List<string> validConditions = new List<string>();
+                            foreach (string condition in conditions)
+                            {
+                                string conditionTrimmed = condition.Trim();
+                                if (LanguageUtilities.IsValidIdentifier(conditionTrimmed))
+                                {
+                                    validConditions.Add(conditionTrimmed);
+                                }
+                                else
+                                {
+                                    m_logger.WriteLine(LoggingCategory.StdErr, string.Format(CultureInfo.CurrentCulture, AD7Resources.Error_Invalid_Exception_Condition, conditionTrimmed));
+                                }
+                            }
+
+                            IEnumerable<string> toAdd = validConditions.Except(m_exceptionBreakpoints).ToList().Distinct();
+                            foreach (string condition in toAdd)
+                            {
+                                var exceptionInfo = new EXCEPTION_INFO[1];
+                                exceptionInfo[0].dwState = filter.State;
+                                exceptionInfo[0].guidType = filter.categoryId;
+                                exceptionInfo[0].bstrExceptionName = condition;
+                                m_engine.SetException(exceptionInfo);
+
+                                m_exceptionBreakpoints.Add(condition);
+                            }
+
+                            IEnumerable<string> toRemove = m_exceptionBreakpoints.Except(validConditions).ToList().Distinct();
+                            foreach (string condition in toRemove)
+                            {
+                                var exceptionInfo = new EXCEPTION_INFO[1];
+                                exceptionInfo[0].dwState = filter.State;
+                                exceptionInfo[0].guidType = filter.categoryId;
+                                exceptionInfo[0].bstrExceptionName = condition;
+
+                                m_engine.RemoveSetException(exceptionInfo);
+                                m_exceptionBreakpoints.Remove(condition);
+                            }
+                        }
+                        else
+                        {
+                            // Enable all exceptions
+                            SetCategoryGuidExceptions(filter.categoryId, filter.State);
+                        }
+                    }
+                    else
+                    {
+                        m_logger.WriteLine(LoggingCategory.StdErr, string.Format(CultureInfo.CurrentCulture, AD7Resources.Error_FilterOption_Not_Supported, filterOption.FilterId));
+                    }
+                }
+            }
+            else
+            {
+                List<string> filters = responder.Arguments.Filters;
+                if (filters != null)
+                {
+                    foreach (string filter in filters)
+                    {
+                        ExceptionBreakpointFilter breakpointFilter = m_engineConfiguration.ExceptionSettings.ExceptionBreakpointFilters.FirstOrDefault(ebf => ebf.filter == filter);
+                        if (breakpointFilter != null)
+                        {
+                            activeExceptionCategories.Add(breakpointFilter.categoryId);
+                            SetCategoryGuidExceptions(breakpointFilter.categoryId, breakpointFilter.State);
+                        }
+                        else
+                        {
+                            Debug.Fail("Unknown exception filter " + filter);
+                        }
+                    }
+                }
+            }
+
+            // Disable unused filters
+            IEnumerable<ExceptionSettings.CategoryConfiguration> unusedCategories = m_engineConfiguration.ExceptionSettings.Categories.Where(c => !activeExceptionCategories.Contains(c.Id));
+            foreach (ExceptionSettings.CategoryConfiguration category in unusedCategories)
+            {
+                SetExceptionCategory(category, enum_EXCEPTION_STATE.EXCEPTION_STOP_SECOND_CHANCE);
             }
 
             responder.SetResponse(new SetExceptionBreakpointsResponse());
@@ -1742,6 +2804,41 @@ namespace OpenDebugAD7
 
             foreach (FunctionBreakpoint b in breakpoints)
             {
+                if (m_functionBreakpoints.ContainsKey(b.Name))
+                {   // already created
+                    IDebugBreakpointRequest2 breakpointRequest;
+                    if (m_functionBreakpoints[b.Name].GetBreakpointRequest(out breakpointRequest) == 0 &&
+                                breakpointRequest is AD7BreakPointRequest ad7BPRequest)
+                    {
+                        // Check to see if this breakpoint has a condition that has changed.
+                        if (!StringComparer.Ordinal.Equals(ad7BPRequest.Condition, b.Condition))
+                        {
+                            // Condition has been modified. Delete breakpoint so it will be recreated with the updated condition.
+                            var toRemove = m_functionBreakpoints[b.Name];
+                            toRemove.Delete();
+                            m_functionBreakpoints.Remove(b.Name);
+                        }
+                        else
+                        {
+                            if (ad7BPRequest.BindResult != null)
+                            {
+                                response.Breakpoints.Add(ad7BPRequest.BindResult);
+                            }
+                            else
+                            {
+                                response.Breakpoints.Add(new Breakpoint()
+                                {
+                                    Id = (int)ad7BPRequest.Id,
+                                    Verified = true,
+                                    Line = 0
+                                });
+
+                            }
+                            continue;
+                        }
+                    }
+                }
+
                 // bind the new function names
                 if (!m_functionBreakpoints.ContainsKey(b.Name))
                 {
@@ -1775,33 +2872,58 @@ namespace OpenDebugAD7
                         }); // couldn't create and/or bind
                     }
                 }
-                else
-                {   // already created
-                    IDebugBreakpointRequest2 breakpointRequest;
-                    if (m_functionBreakpoints[b.Name].GetBreakpointRequest(out breakpointRequest) == 0)
-                    {
-                        var ad7BPRequest = (AD7BreakPointRequest)breakpointRequest;
-                        if (ad7BPRequest.BindResult != null)
-                        {
-                            response.Breakpoints.Add(ad7BPRequest.BindResult);
-                        }
-                        else
-                        {
-                            response.Breakpoints.Add(new Breakpoint()
-                            {
-                                Id = (int)ad7BPRequest.Id,
-                                Verified = true,
-                                Line = 0
-                            });
-
-                        }
-                    }
-                }
             }
 
             m_functionBreakpoints = newBreakpoints;
 
             responder.SetResponse(response);
+        }
+
+        protected override void HandleCompletionsRequestAsync(IRequestResponder<CompletionsArguments, CompletionsResponse> responder)
+        {
+            if (!m_isStopped)
+            {
+                responder.SetError(new ProtocolException("Failed to handle CompletionsRequest", new Message(1105, AD7Resources.Error_TargetNotStopped)));
+                return;
+            }
+
+            IDebugStackFrame2 frame = null;
+            int? frameId = responder.Arguments.FrameId;
+            if (frameId != null)
+                _ = m_frameHandles.TryGet(frameId.Value, out frame);
+
+            try
+            {
+                string command = responder.Arguments.Text;
+                var matchlist = new List<CompletionItem>();
+
+                var debugProgram = m_engine as IDebugProgramDAP;
+
+                if (debugProgram.AutoComplete(command, frame, out string[] results) == HRConstants.S_OK)
+                {
+                    foreach (string result in results)
+                    {
+                        matchlist.Add(new CompletionItem()
+                        {
+                            Label = result,
+                            Start = 0,
+                            Type = CompletionItemType.Text,
+                            Length = result.Length
+                        });
+                    }
+                }
+
+                responder.SetResponse(new CompletionsResponse(matchlist));
+            }
+            catch (NotImplementedException)
+            {
+                // If MIDebugEngine does not implemented AutoCompleted, just return an empty response.
+                responder.SetResponse(new CompletionsResponse());
+            }
+            catch (Exception e)
+            {
+                responder.SetError(new ProtocolException("Auto-completion failed!", e));
+            }
         }
 
         protected override void HandleEvaluateRequestAsync(IRequestResponder<EvaluateArguments, EvaluateResponse> responder)
@@ -1833,49 +2955,9 @@ namespace OpenDebugAD7
                     isExecInConsole = true;
             }
 
-            int hr;
             ErrorBuilder eb = new ErrorBuilder(() => AD7Resources.Error_Scenario_Evaluate);
-            IDebugStackFrame2 frame;
 
-            bool success = false;
-            if (frameId == -1 && isExecInConsole)
-            {
-                // If exec in console and no stack frame, evaluate off the top frame.
-                success = m_frameHandles.TryGetFirst(out frame);
-            }
-            else
-            {
-                success = m_frameHandles.TryGet(frameId, out frame);
-            }
-
-            if (!success)
-            {
-                Dictionary<string, object> properties = new Dictionary<string, object>();
-                properties.Add(DebuggerTelemetry.TelemetryStackFrameId, frameId);
-                properties.Add(DebuggerTelemetry.TelemetryExecuteInConsole, isExecInConsole);
-                DebuggerTelemetry.ReportError(DebuggerTelemetry.TelemetryEvaluateEventName, 1108, "Invalid frameId", properties);
-                responder.SetError(new ProtocolException("Cannot evaluate expression on the specified stack frame."));
-                return;
-            }
-
-            IDebugExpressionContext2 expressionContext;
-            hr = frame.GetExpressionContext(out expressionContext);
-            eb.CheckHR(hr);
-
-            const uint InputRadix = 10;
-            IDebugExpression2 expressionObject;
-            string error;
-            uint errorIndex;
-            hr = expressionContext.ParseText(expression, enum_PARSEFLAGS.PARSE_EXPRESSION, InputRadix, out expressionObject, out error, out errorIndex);
-            if (!string.IsNullOrEmpty(error))
-            {
-                // TODO: Is this how errors should be returned?
-                DebuggerTelemetry.ReportError(DebuggerTelemetry.TelemetryEvaluateEventName, 4001, "Error parsing expression");
-                responder.SetError(new ProtocolException(error));
-                return;
-            }
-            eb.CheckHR(hr);
-            eb.CheckOutput(expressionObject);
+            uint radix = GetRadixFromValueForamt(responder.Arguments.Format);
 
             // NOTE: This is the same as what vssdebug normally passes for the watch window
             enum_EVALFLAGS flags = enum_EVALFLAGS.EVAL_RETURNVALUE |
@@ -1887,10 +2969,11 @@ namespace OpenDebugAD7
                 flags |= enum_EVALFLAGS.EVAL_NOSIDEEFFECTS;
             }
 
-            IDebugProperty2 property;
-            hr = expressionObject.EvaluateSync(flags, Constants.EvaluationTimeout, null, out property);
-            eb.CheckHR(hr);
-            eb.CheckOutput(property);
+            DAPEvalFlags dapEvalFlags = DAPEvalFlags.NONE;
+            if (context == EvaluateArguments.ContextValue.Clipboard)
+            {
+                dapEvalFlags |= DAPEvalFlags.CLIPBOARD_CONTEXT;
+            }
 
             DEBUG_PROPERTY_INFO[] propertyInfo = new DEBUG_PROPERTY_INFO[1];
             enum_DEBUGPROP_INFO_FLAGS propertyInfoFlags = GetDefaultPropertyInfoFlags();
@@ -1900,7 +2983,9 @@ namespace OpenDebugAD7
                 propertyInfoFlags |= (enum_DEBUGPROP_INFO_FLAGS)enum_DEBUGPROP_INFO_FLAGS110.DEBUGPROP110_INFO_NOSIDEEFFECTS;
             }
 
-            property.GetPropertyInfo(propertyInfoFlags, Constants.EvaluationRadix, Constants.EvaluationTimeout, null, 0, propertyInfo);
+            GetDebugPropertyFromExpression(eb, expression, frameId, isExecInConsole, flags, dapEvalFlags, out IDebugProperty2 property);
+
+            property.GetPropertyInfo(propertyInfoFlags, radix, Constants.EvaluationTimeout, null, 0, propertyInfo);
 
             // If the expression evaluation produces an error result and we are trying to get the expression for data tips
             // return a failure result so that VS code won't display the error message in data tips
@@ -1910,7 +2995,9 @@ namespace OpenDebugAD7
                 return;
             }
 
-            Variable variable = m_variableManager.CreateVariable(ref propertyInfo[0], propertyInfoFlags);
+            string memoryReference = AD7Utils.GetMemoryReferenceFromIDebugProperty(property);
+
+            Variable variable = m_variableManager.CreateVariable(ref propertyInfo[0], propertyInfoFlags, memoryReference);
 
             if (context != EvaluateArguments.ContextValue.Hover)
             {
@@ -1924,9 +3011,258 @@ namespace OpenDebugAD7
             {
                 Result = variable.Value,
                 Type = variable.Type,
-                VariablesReference = variable.VariablesReference
+                VariablesReference = variable.VariablesReference,
+                MemoryReference = memoryReference
             });
+        }
 
+        protected override void HandleReadMemoryRequestAsync(IRequestResponder<ReadMemoryArguments, ReadMemoryResponse> responder)
+        {
+            int hr;
+            ReadMemoryArguments rma = responder.Arguments;
+            ErrorBuilder eb = new ErrorBuilder(() => AD7Resources.Error_Scenario_ReadMemory);
+            try
+            {
+                if (string.IsNullOrEmpty(rma.MemoryReference))
+                {
+                    throw new ArgumentException("ReadMemoryArguments.MemoryReference is null or empty.");
+                }
+
+                hr = GetMemoryContext(rma.MemoryReference, rma.Offset, out IDebugMemoryContext2 memoryContext, out ulong address);
+                eb.CheckHR(hr);
+
+                byte[] data = new byte[rma.Count];
+                uint unreadableBytes = 0;
+                uint bytesRead = 0;
+
+                if (rma.Count != 0)
+                {
+                    hr = m_program.GetMemoryBytes(out IDebugMemoryBytes2 debugMemoryBytes);
+                    eb.CheckHR(hr);
+
+                    hr = debugMemoryBytes.ReadAt(memoryContext, (uint)rma.Count, data, out bytesRead, ref unreadableBytes);
+                    eb.CheckHR(hr);
+                }
+
+                responder.SetResponse(new ReadMemoryResponse()
+                {
+                    Address = string.Format(CultureInfo.InvariantCulture, "0x{0:X}", address),
+                    Data = Convert.ToBase64String(data, 0, (int)bytesRead),
+                    UnreadableBytes = (int?)unreadableBytes
+                });
+            }
+            catch (Exception e)
+            {
+                responder.SetError(new ProtocolException(e.Message));
+            }
+        }
+
+        protected override void HandleSetInstructionBreakpointsRequestAsync(IRequestResponder<SetInstructionBreakpointsArguments, SetInstructionBreakpointsResponse> responder)
+        {
+            if (responder.Arguments.Breakpoints == null)
+            {
+                responder.SetError(new ProtocolException("HandleSetInstructionBreakpointsRequest failed: Missing 'breakpoints'."));
+                return;
+            }
+
+            ErrorBuilder eb = new ErrorBuilder(() => AD7Resources.Error_UnableToSetInstructionBreakpoint);
+
+            SetInstructionBreakpointsResponse response = new SetInstructionBreakpointsResponse();
+
+            List<InstructionBreakpoint> breakpoints = responder.Arguments.Breakpoints;
+            Dictionary<ulong, IDebugPendingBreakpoint2> newBreakpoints = new Dictionary<ulong, IDebugPendingBreakpoint2>();
+            try
+            {
+                HashSet<ulong> requestAddresses = responder.Arguments.Breakpoints.Select(x => ResolveInstructionReference(x.InstructionReference, x.Offset)).ToHashSet();
+
+                foreach (KeyValuePair<ulong, IDebugPendingBreakpoint2> b in m_instructionBreakpoints)
+                {
+                    if (requestAddresses.Contains(b.Key))
+                    {
+                        newBreakpoints[b.Key] = b.Value;    // breakpoint still in new list
+                    }
+                    else
+                    {
+                        IDebugPendingBreakpoint2 pendingBp = b.Value;
+                        if (pendingBp != null &&
+                            pendingBp.GetBreakpointRequest(out IDebugBreakpointRequest2 request) == HRConstants.S_OK &&
+                            request is AD7BreakPointRequest ad7Request)
+                        {
+                            HostMarshal.ReleaseCodeContextId(ad7Request.MemoryContextIntPtr);
+                        }
+                        else
+                        {
+                            Debug.Fail("Why can't we retrieve the MemoryContextIntPtr?");
+                        }
+                        b.Value.Delete();   // not in new list so delete it
+                    }
+                }
+
+                foreach (var instructionBp in responder.Arguments.Breakpoints)
+                {
+                    eb.CheckHR(GetMemoryContext(instructionBp.InstructionReference, instructionBp.Offset, out IDebugMemoryContext2 memoryContext, out ulong address));
+
+                    if (m_instructionBreakpoints.ContainsKey(address))
+                    {
+                        IDebugBreakpointRequest2 breakpointRequest;
+                        if (m_instructionBreakpoints[address].GetBreakpointRequest(out breakpointRequest) == 0 &&
+                                    breakpointRequest is AD7BreakPointRequest ad7BPRequest)
+                        {
+                            // Check to see if this breakpoint has a condition that has changed.
+                            if (!StringComparer.Ordinal.Equals(ad7BPRequest.Condition, instructionBp.Condition))
+                            {
+                                // Condition has been modified. Delete breakpoint so it will be recreated with the updated condition.
+                                var toRemove = m_instructionBreakpoints[address];
+                                toRemove.Delete();
+                                m_instructionBreakpoints.Remove(address);
+                            }
+                            else
+                            {
+                                if (ad7BPRequest.BindResult != null)
+                                {
+                                    response.Breakpoints.Add(ad7BPRequest.BindResult);
+                                }
+                                else
+                                {
+                                    response.Breakpoints.Add(new Breakpoint()
+                                    {
+                                        Id = (int)ad7BPRequest.Id,
+                                        Verified = true,
+                                        Line = 0
+                                    });
+
+                                }
+                                continue;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        IDebugPendingBreakpoint2 pendingBp;
+                        AD7BreakPointRequest pBPRequest = new AD7BreakPointRequest(memoryContext);
+
+                        eb.CheckHR(m_engine.CreatePendingBreakpoint(pBPRequest, out pendingBp));
+
+                        if (pendingBp != null && pendingBp.Bind() == HRConstants.S_OK)
+                        {
+                            newBreakpoints[address] = pendingBp;
+                            response.Breakpoints.Add(new Breakpoint()
+                            {
+                                Id = (int)pBPRequest.Id,
+                                Verified = true,
+                                Line = 0
+                            }); // success
+                        }
+                        else
+                        {
+                            response.Breakpoints.Add(new Breakpoint()
+                            {
+                                Id = (int)pBPRequest.Id,
+                                Verified = false,
+                                Line = 0,
+                                Message = string.Format(CultureInfo.CurrentCulture, AD7Resources.Error_UnableToSetInstructionBreakpoint, address)
+                            }); // couldn't create and/or bind
+                        }
+                    }
+                }
+
+                m_instructionBreakpoints = newBreakpoints;
+
+                responder.SetResponse(response);
+            }
+            catch (Exception e)
+            {
+                responder.SetError(new ProtocolException(e.Message));
+            }
+        }
+
+        protected override void HandleSetExpressionRequestAsync(IRequestResponder<SetExpressionArguments, SetExpressionResponse> responder)
+        {
+            string expression = responder.Arguments.Expression;
+            string value = responder.Arguments.Value;
+            int frameId = responder.Arguments.FrameId.GetValueOrDefault(-1);
+
+            // if we are not stopped don't try to set
+            if (!m_isStopped)
+            {
+                responder.SetError(new ProtocolException(AD7Resources.Error_TargetNotStopped, new Message(1105, AD7Resources.Error_TargetNotStopped)));
+                return;
+            }
+
+            uint radix = GetRadixFromValueForamt(responder.Arguments.Format);
+
+            var eb = new ErrorBuilder(() => string.Format(CultureInfo.CurrentCulture, AD7Resources.Error_SetExpression, expression, value));
+
+            try
+            {
+                // Create variable
+                GetDebugPropertyFromExpression(
+                    eb,
+                    expression,
+                    frameId,
+                    false,
+                    enum_EVALFLAGS.EVAL_RETURNVALUE | enum_EVALFLAGS.EVAL_NOEVENTS | (enum_EVALFLAGS)enum_EVALFLAGS110.EVAL110_FORCE_REAL_FUNCEVAL,
+                    DAPEvalFlags.NONE,
+                    out IDebugProperty2 property
+                );
+
+                // Get property information to make sure it is not read-only.
+                DEBUG_PROPERTY_INFO[] propertyInfo = new DEBUG_PROPERTY_INFO[1];
+                eb.CheckHR(property.GetPropertyInfo(enum_DEBUGPROP_INFO_FLAGS.DEBUGPROP_INFO_ATTRIB, radix, Constants.EvaluationTimeout, null, 0, propertyInfo));
+                if (propertyInfo[0].dwAttrib.HasFlag(enum_DBG_ATTRIB_FLAGS.DBG_ATTRIB_VALUE_READONLY))
+                {
+                    string message = string.Format(CultureInfo.CurrentCulture, AD7Resources.Error_VariableIsReadonly, expression);
+                    responder.SetError(new ProtocolException(message, new Message(1107, message)));
+                    return;
+                }
+
+                // Assign value
+                string error = null;
+                int hr;
+                if (property is IDebugProperty3 prop3)
+                {
+                    hr = prop3.SetValueAsStringWithError(value, Constants.EvaluationRadix, Constants.EvaluationTimeout, out error);
+                }
+                else
+                {
+                    hr = property.SetValueAsString(value, Constants.EvaluationRadix, Constants.EvaluationTimeout);
+                }
+
+                if (hr != HRConstants.S_OK)
+                {
+                    string message = error ?? AD7Resources.Error_SetVariableFailed;
+                    throw new ProtocolException(message, new Message(1107, message));
+                }
+
+                // Query for new value
+                GetDebugPropertyFromExpression(
+                    eb,
+                    expression,
+                    frameId,
+                    true, // Treat SetExpression like expressions from the top frame.
+                    enum_EVALFLAGS.EVAL_RETURNVALUE | enum_EVALFLAGS.EVAL_NOEVENTS | (enum_EVALFLAGS)enum_EVALFLAGS110.EVAL110_FORCE_REAL_FUNCEVAL,
+                    DAPEvalFlags.NONE,
+                    out property
+                );
+
+                enum_DEBUGPROP_INFO_FLAGS propertyInfoFlags = GetDefaultPropertyInfoFlags();
+                eb.CheckHR(property.GetPropertyInfo(propertyInfoFlags, radix, Constants.EvaluationTimeout, null, 0, propertyInfo));
+
+                string memoryReference = AD7Utils.GetMemoryReferenceFromIDebugProperty(property);
+                Variable variable = m_variableManager.CreateVariable(ref propertyInfo[0], propertyInfoFlags, memoryReference);
+
+                responder.SetResponse(new SetExpressionResponse
+                {
+                    Value = variable.Value,
+                    Type = variable.Type,
+                    VariablesReference = variable.VariablesReference
+                });
+            }
+            catch (Exception ex)
+            {
+                responder.SetError(new ProtocolException(ex.Message));
+            }
+            
         }
 
         #endregion
@@ -1951,9 +3287,9 @@ namespace OpenDebugAD7
             return HRConstants.S_OK;
         }
 
-        #endregion
+#endregion
 
-        #region IDebugEventCallback2
+#region IDebugEventCallback2
 
         private readonly Dictionary<Guid, Action<IDebugEngine2, IDebugProcess2, IDebugProgram2, IDebugThread2, IDebugEvent2>> m_syncEventHandler = new Dictionary<Guid, Action<IDebugEngine2, IDebugProcess2, IDebugProgram2, IDebugThread2, IDebugEvent2>>();
         private readonly Dictionary<Guid, Func<IDebugEngine2, IDebugProcess2, IDebugProgram2, IDebugThread2, IDebugEvent2, Task>> m_asyncEventHandler = new Dictionary<Guid, Func<IDebugEngine2, IDebugProcess2, IDebugProgram2, IDebugThread2, IDebugEvent2, Task>>();
@@ -1975,6 +3311,7 @@ namespace OpenDebugAD7
             RegisterSyncEventHandler(typeof(IDebugBreakpointErrorEvent2), HandleIDebugBreakpointErrorEvent2);
             RegisterSyncEventHandler(typeof(IDebugOutputStringEvent2), HandleIDebugOutputStringEvent2);
             RegisterSyncEventHandler(typeof(IDebugMessageEvent2), HandleIDebugMessageEvent2);
+            RegisterSyncEventHandler(typeof(IDebugProcessInfoUpdatedEvent158), HandleIDebugProcessInfoUpdatedEvent158);
 
             // Async Handlers
             RegisterAsyncEventHandler(typeof(IDebugProgramCreateEvent2), HandleIDebugProgramCreateEvent2);
@@ -2049,7 +3386,47 @@ namespace OpenDebugAD7
 
         public void HandleIDebugBreakpointEvent2(IDebugEngine2 pEngine, IDebugProcess2 pProcess, IDebugProgram2 pProgram, IDebugThread2 pThread, IDebugEvent2 pEvent)
         {
-            FireStoppedEvent(pThread, StoppedEvent.ReasonValue.Breakpoint);
+            IDebugBreakpointEvent2 breakpointEvent = pEvent as IDebugBreakpointEvent2;
+            StoppedEvent.ReasonValue reason = GetStoppedEventReason(breakpointEvent);
+            IList <Tracepoint> tracepoints = GetTracepoints(breakpointEvent);
+            if (tracepoints.Any())
+            {
+                ThreadPool.QueueUserWorkItem((o) =>
+                {
+                    foreach (var tp in tracepoints)
+                    {
+                        int hr = tp.GetLogMessage(pThread, Constants.ParseRadix, m_processName, m_processId, out string logMessage);
+                        if (hr != HRConstants.S_OK)
+                        {
+                            DebuggerTelemetry.ReportError(DebuggerTelemetry.TelemetryTracepointEventName, logMessage);
+                            m_logger.WriteLine(LoggingCategory.DebuggerError, logMessage);
+                        }
+                        else
+                        {
+                            m_logger.WriteLine(LoggingCategory.DebuggerStatus, logMessage);
+                        }
+                    }
+
+                    // Need to check to see if the previous continuation of the debuggee was a step. 
+                    // If so, we need to send a stopping event to the UI to signal the step completed successfully. 
+                    if (!m_isStepping)
+                    {
+                        ThreadPool.QueueUserWorkItem((obj) =>
+                        {
+                            BeforeContinue();
+                            m_program.Continue(pThread);
+                        });
+                    }
+                    else
+                    {
+                        FireStoppedEvent(pThread, reason);
+                    }
+                });
+            }
+            else
+            {
+                FireStoppedEvent(pThread, reason);
+            }
         }
 
         public void HandleIDebugBreakEvent2(IDebugEngine2 pEngine, IDebugProcess2 pProcess, IDebugProgram2 pProgram, IDebugThread2 pThread, IDebugEvent2 pEvent)
@@ -2147,6 +3524,27 @@ namespace OpenDebugAD7
             ((IDebugModuleLoadEvent2)pEvent).GetModule(out module, ref moduleLoadMessage, ref isLoad);
 
             m_logger.WriteLine(LoggingCategory.Module, moduleLoadMessage);
+
+            int? moduleId = null;
+            ModuleEvent.ReasonValue reason = ModuleEvent.ReasonValue.Unknown;
+
+            if (isLoad != 0)
+            {
+                moduleId = (int?)RegisterDebugModule(module);
+                reason = ModuleEvent.ReasonValue.New;
+            } else {
+                moduleId = ReleaseDebugModule(module);
+                reason = ModuleEvent.ReasonValue.Removed;
+            }
+
+            if (moduleId != null)
+            {
+                var mod = ConvertToModule(module, (int)moduleId);
+                if (mod != null)
+                {
+                    Protocol.SendEvent(new ModuleEvent(reason, mod));
+                }
+            }
         }
 
         public void HandleIDebugBreakpointBoundEvent2(IDebugEngine2 pEngine, IDebugProcess2 pProcess, IDebugProgram2 pProgram, IDebugThread2 pThread, IDebugEvent2 pEvent)
@@ -2235,7 +3633,7 @@ namespace OpenDebugAD7
                                 };
                             }
                         }
-                        else
+                        else if (ad7BPRequest.FunctionPosition != null)
                         {
                             bp = new Breakpoint()
                             {
@@ -2247,6 +3645,18 @@ namespace OpenDebugAD7
 
                             // TODO: currently VSCode will ignore the error message from "breakpoint" event, the workaround is to log the error to output window
                             string outputMsg = string.Format(CultureInfo.CurrentCulture, AD7Resources.Error_FunctionBreakpoint, ad7BPRequest.FunctionPosition.Name, errorMsg);
+                            m_logger.WriteLine(LoggingCategory.DebuggerError, outputMsg);
+                        }
+                        else // data bp
+                        {
+                            string outputMsg = string.Format(CultureInfo.CurrentCulture, AD7Resources.Error_InvalidDataBreakpoint, errorMsg);
+                            bp = new Breakpoint()
+                            {
+                                Verified = false,
+                                Id = (int)ad7BPRequest.Id,
+                                Line = 0,
+                                Message = outputMsg
+                            };
                             m_logger.WriteLine(LoggingCategory.DebuggerError, outputMsg);
                         }
 
@@ -2334,6 +3744,73 @@ namespace OpenDebugAD7
             }
         }
 
-        #endregion
+        public void HandleIDebugProcessInfoUpdatedEvent158(IDebugEngine2 pEngine, IDebugProcess2 pProcess, IDebugProgram2 pProgram, IDebugThread2 pThread, IDebugEvent2 pEvent)
+        {
+            IDebugProcessInfoUpdatedEvent158 debugProcessInfoUpdated = pEvent as IDebugProcessInfoUpdatedEvent158;
+
+            if (debugProcessInfoUpdated != null && 
+                debugProcessInfoUpdated.GetUpdatedProcessInfo(out string name, out uint systemProcessId) == HRConstants.S_OK)
+            {
+                // Update Process Name and Id
+                m_processName = name;
+                m_processId = (int)systemProcessId;
+
+                // Send ProcessEvent to Client
+                ProcessEvent processEvent = new ProcessEvent();
+                processEvent.Name = m_processName;
+                processEvent.SystemProcessId = m_processId;
+
+                if (m_isAttach)
+                {
+                    processEvent.StartMethod = ProcessEvent.StartMethodValue.Attach;
+                }
+                else
+                {
+                    processEvent.StartMethod = ProcessEvent.StartMethodValue.Launch;
+                }
+
+                if (m_engine is IDebugProgramDAP debugProgram)
+                {
+                    if (debugProgram.GetPointerSize(out int pointerSize) == HRConstants.S_OK)
+                    {
+                        processEvent.PointerSize = pointerSize;
+                    }
+                }
+                Protocol.SendEvent(processEvent);
+            }
+        }
+
+#endregion
+
+        private class DebugSettingsCallback : IDebugSettingsCallback110
+        {
+            public DebugSettingsCallback()
+            {
+                Radix = Constants.EvaluationRadix;
+            }
+
+            internal uint Radix { get; set; }
+
+            int IDebugSettingsCallback110.GetDisplayRadix(out uint pdwRadix)
+            {
+                pdwRadix = Radix;
+                return HRConstants.S_OK;
+            }
+
+            int IDebugSettingsCallback110.GetUserDocumentPath(out string pbstrUserDocumentPath)
+            {
+                throw new NotImplementedException();
+            }
+
+            int IDebugSettingsCallback110.ShouldHideNonPublicMembers(out int pfHideNonPublicMembers)
+            {
+                throw new NotImplementedException();
+            }
+
+            int IDebugSettingsCallback110.ShouldSuppressImplicitToStringCalls(out int pfSuppressImplicitToStringCalls)
+            {
+                throw new NotImplementedException();
+            }
+        }
     }
 }

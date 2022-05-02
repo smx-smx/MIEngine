@@ -349,7 +349,7 @@ namespace MICore
         {
             StringBuilder builder = new StringBuilder();
             builder.Append(Name);
-            builder.Append("=");
+            builder.Append('=');
             builder.Append(Value.ToString());
             return builder.ToString();
         }
@@ -382,16 +382,16 @@ namespace MICore
         public override string ToString()
         {
             StringBuilder outTuple = new StringBuilder();
-            outTuple.Append("{");
+            outTuple.Append('{');
             for (int i = 0; i < Content.Count; ++i)
             {
                 if (i != 0)
                 {
-                    outTuple.Append(",");
+                    outTuple.Append(',');
                 }
                 outTuple.Append(Content[i].ToString());
             }
-            outTuple.Append("}");
+            outTuple.Append('}');
             return outTuple.ToString();
         }
         public ResultValue[] FindAll(string name)
@@ -469,16 +469,16 @@ namespace MICore
         public override string ToString()
         {
             StringBuilder outList = new StringBuilder();
-            outList.Append("[");
+            outList.Append('[');
             for (int i = 0; i < Content.Length; ++i)
             {
                 if (i != 0)
                 {
-                    outList.Append(",");
+                    outList.Append(',');
                 }
                 outList.Append(Content[i].ToString());
             }
-            outList.Append("]");
+            outList.Append(']');
             return outList.ToString();
         }
     }
@@ -532,18 +532,18 @@ namespace MICore
         public override string ToString()
         {
             StringBuilder outList = new StringBuilder();
-            outList.Append("[");
+            outList.Append('[');
             for (int i = 0; i < Content.Length; ++i)
             {
                 if (i != 0)
                 {
-                    outList.Append(",");
+                    outList.Append(',');
                 }
                 outList.Append(Content[i].Name);
-                outList.Append("=");
+                outList.Append('=');
                 outList.Append(Content[i].Value.ToString());
             }
-            outList.Append("]");
+            outList.Append(']');
             return outList.ToString();
         }
     }
@@ -598,17 +598,12 @@ namespace MICore
     {
         struct Span
         {
-            static Span _emptySpan;
+            static Span _emptySpan = new Span(0, 0);
             public int Start { get; private set; }  // index first character in the substring
             public int Length { get; private set; } // length of the substring
             public int Extent { get { return Start + Length; } }
             public bool IsEmpty { get { return Length == 0; } }
             public static Span Empty { get { return _emptySpan; } }
-
-            static Span()
-            {
-                _emptySpan = new Span(0, 0);
-            }
 
             public Span(string s)
             {
@@ -619,7 +614,7 @@ namespace MICore
             {
                 if (start < 0)
                 {
-                    throw new ArgumentException("start");
+                    throw new ArgumentException(null, nameof(start));
                 }
                 Start = start;
                 Length = len;
@@ -628,7 +623,7 @@ namespace MICore
             {
                 if (len > Length)
                 {
-                    throw new ArgumentException("len");
+                    throw new ArgumentException(null, nameof(len));
                 }
                 return new Span(Start + len, Length - len);
             }
@@ -636,7 +631,7 @@ namespace MICore
             {
                 if (Start > pos || pos > Start + Length)
                 {
-                    throw new ArgumentException("pos");
+                    throw new ArgumentException(null, nameof(pos));
                 }
                 return new Span(pos, Length - (pos - Start));
             }
@@ -644,7 +639,7 @@ namespace MICore
             {
                 if (len > Length)
                 {
-                    throw new ArgumentException("len");
+                    throw new ArgumentException(null, nameof(len));
                 }
                 return new Span(Start, len);
             }
@@ -730,21 +725,27 @@ namespace MICore
                     {
                         return i == s.Extent;
                     }, listStr, out rest);
-            if (!rest.IsEmpty)
+
+            Results results = new Results(resultClass, list);
+
+            if (rest.IsEmpty)
+            {
+                return results;
+            }
+            else
             {
                 ParseError("trailing chars", rest);
-                return null;
+                throw new MIResultFormatException(CreateErrorMessageFromSpan(rest), results);
             }
-            return new Results(resultClass, list);
         }
 
         public string ParseCString(string input)
         {
             if (input == null)
             {
-                throw new ArgumentNullException("input");
+                throw new ArgumentNullException(nameof(input));
             }
-            else if (input == String.Empty)
+            else if (string.IsNullOrEmpty(input))
             {
                 return string.Empty;
             }
@@ -1195,15 +1196,24 @@ namespace MICore
 
         private void ParseError(string message, Span input)
         {
-            if (input.Length > 1000)
-            {
-                input = new Span(input.Start, 1000);    // don't show more than 1000 chars
-            }
-            string result = input.Extract(_resultString);
+            string result = CreateErrorMessageFromSpan(input);
             Debug.Fail(message + ": " + result);
-#if DEBUG
+
             Logger?.WriteLine(String.Format(CultureInfo.CurrentCulture, "MI parsing error: {0}: \"{1}\"", message, result));
-#endif
+
+        }
+
+        // The amount of characters to send to the UI upon an error.
+        private static int PARSE_ERROR_MSG_LIMIT = 1000;
+
+        private string CreateErrorMessageFromSpan(Span input)
+        {
+            if (input.Length > PARSE_ERROR_MSG_LIMIT)
+            {
+                input = new Span(input.Start, PARSE_ERROR_MSG_LIMIT);
+            }
+
+            return input.Extract(_resultString);
         }
     }
 }

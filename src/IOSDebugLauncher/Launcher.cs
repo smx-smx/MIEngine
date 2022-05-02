@@ -44,7 +44,7 @@ namespace IOSDebugLauncher
         void IPlatformAppLauncher.SetLaunchOptions(string exePath, string args, string dir, object launcherXmlOptions, TargetEngine targetEngine)
         {
             if (launcherXmlOptions == null)
-                throw new ArgumentNullException("launcherXmlOptions");
+                throw new ArgumentNullException(nameof(launcherXmlOptions));
 
             if (targetEngine != TargetEngine.Native)
                 throw new LauncherException(String.Format(CultureInfo.CurrentCulture, LauncherResources.Error_BadTargetEngine, targetEngine.ToString()));
@@ -92,7 +92,7 @@ namespace IOSDebugLauncher
                     return _client.ServerCertificateValidationCallback(sender, (X509Certificate)certificate, (X509Chain)chain, sslPolicyErrors);
                 };
             }
-            
+
             debuggerLaunchOptions.TargetArchitecture = _launchOptions.TargetArchitecture;
             debuggerLaunchOptions.AdditionalSOLibSearchPath = _launchOptions.AdditionalSOLibSearchPath;
             debuggerLaunchOptions.DebuggerMIMode = MIMode.Lldb;

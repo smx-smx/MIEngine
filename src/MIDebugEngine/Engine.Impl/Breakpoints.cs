@@ -160,7 +160,10 @@ namespace Microsoft.MIDebugEngine
                 // (the error is sent via an "&" string and hence lost)
                 return new BindResult(errormsg);
             }
-            Debug.Assert(bkpt.FindString("type") == "breakpoint");
+            string bkptType = bkpt.FindString("type");
+
+            // gdb reports breakpoint type "hw breakpoint" for `-break-insert -h` command
+            Debug.Assert(bkptType == "breakpoint" || bkptType == "hw breakpoint");
 
             string number = bkpt.FindString("number");
             string warning = bkpt.TryFindString("warning");
@@ -367,7 +370,6 @@ namespace Microsoft.MIDebugEngine
 
         internal BoundBreakpoint(PendingBreakpoint parent, TupleValue bindinfo)
         {
-            // CLRDBG TODO: Support clr addresses for breakpoints
             this.Addr = bindinfo.TryFindAddr("addr") ?? 0;
             this.FunctionName = bindinfo.TryFindString("func");
             this.Enabled = bindinfo.TryFindString("enabled") == "n" ? false : true;
@@ -409,7 +411,7 @@ namespace Microsoft.MIDebugEngine
                 return _parent.AD7breakpoint.GetDocumentContext(this.Addr, this.FunctionName);
             }
 
-            return new AD7DocumentContext(_textPosition, new AD7MemoryAddress(engine, Addr, this.FunctionName), engine.DebuggedProcess);
+            return new AD7DocumentContext(_textPosition, new AD7MemoryAddress(engine, Addr, this.FunctionName));
         }
 
         /// <summary>

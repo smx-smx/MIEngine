@@ -199,16 +199,14 @@ namespace Microsoft.MIDebugEngine
             // should notify each bound breakpoint that it has been hit and evaluate conditions here.
             // The sample engine does not support these features.
 
-            AD7BoundBreakpointsEnum boundBreakpointsEnum = new AD7BoundBreakpointsEnum(boundBreakpoints);
-
-            AD7BreakpointEvent eventObject = new AD7BreakpointEvent(boundBreakpointsEnum);
+            AD7BreakpointEvent eventObject = new AD7BreakpointEvent(boundBreakpoints);
 
             AD7Thread ad7Thread = (AD7Thread)thread.Client;
             Send(eventObject, AD7BreakpointEvent.IID, ad7Thread);
         }
 
         // Exception events are sent when an exception occurs in the debuggee that the debugger was not expecting.
-        public void OnException(DebuggedThread thread, string name, string description, uint code, Guid? exceptionCategory = null, ExceptionBreakpointState state = ExceptionBreakpointState.None)
+        public void OnException(DebuggedThread thread, string name, string description, uint code, Guid? exceptionCategory = null, ExceptionBreakpointStates state = ExceptionBreakpointStates.None)
         {
             AD7ExceptionEvent eventObject = new AD7ExceptionEvent(name, description, code, exceptionCategory, state);
 

@@ -33,28 +33,31 @@ namespace Microsoft.MIDebugEngine
         private readonly ReadOnlyDictionary<Guid, ExceptionCategorySettings> _categoryMap;
         private readonly ISampleEngineCallback _callback;
         private bool _initialSettingssSent;
+        private bool _canProcessExceptions = true;
 
         private readonly object _updateLock = new object();
         private int? _lastUpdateTime;
         private Task _updateTask;
         private CancellationTokenSource _updateDelayCancelSource;
 
-        private class SettingsUpdates
+        private static readonly Guid CppExceptionCategoryGuid = new Guid("{3A12D0B7-C26C-11D0-B442-00A0244A1DD2}");
+
+    private class SettingsUpdates
         {
             // Threading note: these are only modified on the main thread
-            public ExceptionBreakpointState? NewCategoryState;
-            public readonly Dictionary<string, ExceptionBreakpointState> RulesToAdd;
+            public ExceptionBreakpointStates? NewCategoryState;
+            public readonly Dictionary<string, ExceptionBreakpointStates> RulesToAdd;
             public readonly HashSet<string> RulesToRemove = new HashSet<string>();
 
-            public SettingsUpdates(/*OPTIONAL*/ ExceptionBreakpointState? initialNewCategoryState, /*OPTIONAL*/ ReadOnlyDictionary<string, ExceptionBreakpointState> initialRuleChanges)
+            public SettingsUpdates(/*OPTIONAL*/ ExceptionBreakpointStates? initialNewCategoryState, /*OPTIONAL*/ ReadOnlyDictionary<string, ExceptionBreakpointStates> initialRuleChanges)
             {
                 this.NewCategoryState = initialNewCategoryState;
 
                 // The dictionary constructor which takes a read only dictionary is unhappy if we pass in null, so switch off which constructor we call
                 if (initialRuleChanges != null)
-                    this.RulesToAdd = new Dictionary<string, ExceptionBreakpointState>(initialRuleChanges);
+                    this.RulesToAdd = new Dictionary<string, ExceptionBreakpointStates>(initialRuleChanges);
                 else
-                    this.RulesToAdd = new Dictionary<string, ExceptionBreakpointState>();
+                    this.RulesToAdd = new Dictionary<string, ExceptionBreakpointStates>();
             }
         }
 
@@ -91,12 +94,14 @@ namespace Microsoft.MIDebugEngine
         {
             private readonly ExceptionManager _parent;
             public readonly string CategoryName;
-            public readonly ExceptionBreakpointState DefaultCategoryState;
-            public readonly ReadOnlyDictionary<string, ExceptionBreakpointState> DefaultRules;
+            public readonly ExceptionBreakpointStates DefaultCategoryState;
+            public readonly ReadOnlyDictionary<string, ExceptionBreakpointStates> DefaultRules;
 
-            // Threading note: these are only read or updated by the FlushSettingsUpdates thread (in UpdateCatagory), and we
-            // guarantee that there will only be one active FlushSettingsUpdates task at a time
-            public ExceptionBreakpointState CategoryState;
+            // Threading note: these are only read or updated by the FlushSettingsUpdates thread (in UpdateCategory) and TryGetExceptionBreakpoint. 
+            // The following rules apply:
+            // 1. Writes and reads when *NOT* on the FlushSettingsUpdates thread - collection should be locked on itself
+            // 2. Reads on the FlushSettingsUpdates thread - no locking is needed
+            public ExceptionBreakpointStates CategoryState;
             public readonly Dictionary<string, ulong> CurrentRules = new Dictionary<string, ulong>();
 
             private readonly object _updateLock = new object();
@@ -108,13 +113,13 @@ namespace Microsoft.MIDebugEngine
                 _parent = parent;
                 this.CategoryName = categoryName;
                 this.DefaultCategoryState = RegistryToExceptionBreakpointState(categoryKey.GetValue("*"));
-                Dictionary<string, ExceptionBreakpointState> exceptionSettings = new Dictionary<string, ExceptionBreakpointState>();
+                Dictionary<string, ExceptionBreakpointStates> exceptionSettings = new Dictionary<string, ExceptionBreakpointStates>();
                 foreach (string valueName in categoryKey.GetValueNames())
                 {
                     if (string.IsNullOrEmpty(valueName) || valueName == "*" || !ExceptionManager.IsSupportedException(valueName))
                         continue;
 
-                    ExceptionBreakpointState value = RegistryToExceptionBreakpointState(categoryKey.GetValue(valueName));
+                    ExceptionBreakpointStates value = RegistryToExceptionBreakpointState(categoryKey.GetValue(valueName));
                     if (value == this.DefaultCategoryState)
                     {
                         Debug.Fail("Redundant exception trigger found in the registry.");
@@ -123,7 +128,7 @@ namespace Microsoft.MIDebugEngine
 
                     exceptionSettings.Add(valueName, value);
                 }
-                this.DefaultRules = new ReadOnlyDictionary<string, ExceptionBreakpointState>(exceptionSettings);
+                this.DefaultRules = new ReadOnlyDictionary<string, ExceptionBreakpointStates>(exceptionSettings);
                 _settingsUpdate = new SettingsUpdates(this.DefaultCategoryState, this.DefaultRules);
             }
 
@@ -150,10 +155,10 @@ namespace Microsoft.MIDebugEngine
                 }
             }
 
-            private static ExceptionBreakpointState RegistryToExceptionBreakpointState(/*OPTIONAL*/ object registryValue)
+            private static ExceptionBreakpointStates RegistryToExceptionBreakpointState(/*OPTIONAL*/ object registryValue)
             {
                 if (registryValue == null || !(registryValue is int))
-                    return ExceptionBreakpointState.None;
+                    return ExceptionBreakpointStates.None;
 
                 enum_EXCEPTION_STATE value = (enum_EXCEPTION_STATE)(int)registryValue;
                 return ExceptionManager.ToExceptionBreakpointState(value);
@@ -174,30 +179,33 @@ namespace Microsoft.MIDebugEngine
 
         public void RemoveAllSetExceptions(Guid guidType)
         {
-            if (guidType == Guid.Empty)
+            if (_canProcessExceptions)
             {
-                foreach (var key in _categoryMap.Keys)
+                if (guidType == Guid.Empty)
                 {
-                    RemoveAllSetExceptions(key);
-                }
-            }
-            else
-            {
-                ExceptionCategorySettings categorySettings;
-                if (!_categoryMap.TryGetValue(guidType, out categorySettings))
-                {
-                    return; // not a category that we care about
-                }
-
-                using (var settingsUpdateHolder = categorySettings.GetSettingsUpdate())
-                {
-                    settingsUpdateHolder.Value.RulesToAdd.Clear();
-                    settingsUpdateHolder.Value.RulesToRemove.Clear();
-
-                    settingsUpdateHolder.Value.NewCategoryState = categorySettings.DefaultCategoryState;
-                    foreach (var defaultRule in categorySettings.DefaultRules)
+                    foreach (var key in _categoryMap.Keys)
                     {
-                        settingsUpdateHolder.Value.RulesToAdd.Add(defaultRule.Key, defaultRule.Value);
+                        RemoveAllSetExceptions(key);
+                    }
+                }
+                else
+                {
+                    ExceptionCategorySettings categorySettings;
+                    if (!_categoryMap.TryGetValue(guidType, out categorySettings))
+                    {
+                        return; // not a category that we care about
+                    }
+
+                    using (var settingsUpdateHolder = categorySettings.GetSettingsUpdate())
+                    {
+                        settingsUpdateHolder.Value.RulesToAdd.Clear();
+                        settingsUpdateHolder.Value.RulesToRemove.Clear();
+
+                        settingsUpdateHolder.Value.NewCategoryState = categorySettings.DefaultCategoryState;
+                        foreach (var defaultRule in categorySettings.DefaultRules)
+                        {
+                            settingsUpdateHolder.Value.RulesToAdd.Add(defaultRule.Key, defaultRule.Value);
+                        }
                     }
                 }
             }
@@ -205,80 +213,134 @@ namespace Microsoft.MIDebugEngine
 
         public void RemoveSetException(ref EXCEPTION_INFO exceptionInfo)
         {
-            ExceptionCategorySettings categorySettings;
-            if (!_categoryMap.TryGetValue(exceptionInfo.guidType, out categorySettings))
+            if (_canProcessExceptions)
             {
-                return; // not a category that we care about
-            }
-
-            if (categorySettings.CategoryName.Equals(exceptionInfo.bstrExceptionName, StringComparison.OrdinalIgnoreCase))
-            {
-                // We treat removing an exception category to be the same as setting all the exceptions in the category to break unhandled.
-                EXCEPTION_INFO setExceptionInfo = exceptionInfo;
-                setExceptionInfo.dwState = enum_EXCEPTION_STATE.EXCEPTION_STOP_SECOND_CHANCE;
-                SetException(ref setExceptionInfo);
-            }
-            else
-            {
-                string exceptionName = GetExceptionId(exceptionInfo.bstrExceptionName, exceptionInfo.dwCode);
-
-                if (!IsSupportedException(exceptionName))
+                ExceptionCategorySettings categorySettings;
+                if (!_categoryMap.TryGetValue(exceptionInfo.guidType, out categorySettings))
                 {
-                    return;
+                    return; // not a category that we care about
                 }
 
-                using (var settingsUpdateHolder = categorySettings.GetSettingsUpdate())
+                if (categorySettings.CategoryName.Equals(exceptionInfo.bstrExceptionName, StringComparison.OrdinalIgnoreCase))
                 {
-                    settingsUpdateHolder.Value.RulesToAdd.Remove(exceptionName);
-                    settingsUpdateHolder.Value.RulesToRemove.Add(exceptionName);
+                    // We treat removing an exception category to be the same as setting all the exceptions in the category to break unhandled.
+                    EXCEPTION_INFO setExceptionInfo = exceptionInfo;
+                    setExceptionInfo.dwState = enum_EXCEPTION_STATE.EXCEPTION_STOP_SECOND_CHANCE;
+                    SetException(ref setExceptionInfo);
+                }
+                else
+                {
+                    string exceptionName = GetExceptionId(exceptionInfo.bstrExceptionName, exceptionInfo.dwCode);
+
+                    if (!IsSupportedException(exceptionName))
+                    {
+                        return;
+                    }
+
+                    using (var settingsUpdateHolder = categorySettings.GetSettingsUpdate())
+                    {
+                        settingsUpdateHolder.Value.RulesToRemove.Add(exceptionName);
+                    }
                 }
             }
         }
 
         public void SetException(ref EXCEPTION_INFO exceptionInfo)
         {
-            ExceptionCategorySettings categorySettings;
-            if (!_categoryMap.TryGetValue(exceptionInfo.guidType, out categorySettings))
+            if (_canProcessExceptions)
             {
-                return; // not a category that we care about
-            }
-
-            var newState = ToExceptionBreakpointState(exceptionInfo.dwState);
-
-            if (categorySettings.CategoryName.Equals(exceptionInfo.bstrExceptionName, StringComparison.OrdinalIgnoreCase))
-            {
-                // Setting the exception category will clear all the existing rules in that category
-
-                SetCategory(categorySettings, newState);
-            }
-            else
-            {
-                string exceptionName = GetExceptionId(exceptionInfo.bstrExceptionName, exceptionInfo.dwCode);
-
-                if (!IsSupportedException(exceptionName))
+                ExceptionCategorySettings categorySettings;
+                if (!_categoryMap.TryGetValue(exceptionInfo.guidType, out categorySettings))
                 {
-                    return;
+                    return; // not a category that we care about
                 }
 
-                using (var settingsUpdateHolder = categorySettings.GetSettingsUpdate())
+                var newState = ToExceptionBreakpointState(exceptionInfo.dwState);
+
+                if (categorySettings.CategoryName.Equals(exceptionInfo.bstrExceptionName, StringComparison.OrdinalIgnoreCase))
                 {
-                    settingsUpdateHolder.Value.RulesToRemove.Remove(exceptionName);
-                    settingsUpdateHolder.Value.RulesToAdd[exceptionName] = newState;
+                    // Setting the exception category will clear all the existing rules in that category
+
+                    SetCategory(categorySettings, newState);
+                }
+                else
+                {
+                    string exceptionName = GetExceptionId(exceptionInfo.bstrExceptionName, exceptionInfo.dwCode);
+
+                    if (!IsSupportedException(exceptionName))
+                    {
+                        return;
+                    }
+
+                    using (var settingsUpdateHolder = categorySettings.GetSettingsUpdate())
+                    {
+                        settingsUpdateHolder.Value.RulesToRemove.Remove(exceptionName);
+                        settingsUpdateHolder.Value.RulesToAdd[exceptionName] = newState;
+                    }
                 }
             }
         }
 
         public void SetAllExceptions(enum_EXCEPTION_STATE dwState)
         {
-            var newState = ToExceptionBreakpointState(dwState);
-
-            foreach (var pair in _categoryMap)
+            if (_canProcessExceptions)
             {
-                SetCategory(pair.Value, newState);
+                var newState = ToExceptionBreakpointState(dwState);
+
+                foreach (var pair in _categoryMap)
+                {
+                    SetCategory(pair.Value, newState);
+                }
             }
         }
 
-        private static void SetCategory(ExceptionCategorySettings categorySettings, ExceptionBreakpointState newState)
+        public bool TryGetExceptionBreakpoint(string bkptno, ulong address, TupleValue frame, out string exceptionName, out string exceptionDescription, out Guid exceptionCategoryGuid)
+        {
+            exceptionName = string.Empty;
+            exceptionDescription = string.Empty;
+            exceptionCategoryGuid = Guid.Empty;
+            ExceptionCategorySettings categorySettings;
+            if (_categoryMap.TryGetValue(CppExceptionCategoryGuid, out categorySettings))
+            {
+                ulong breakpointNumber = Convert.ToUInt32(bkptno, CultureInfo.InvariantCulture);
+                lock (categorySettings.CurrentRules)
+                {
+                    exceptionName = categorySettings.CurrentRules.FirstOrDefault(pair => pair.Value == breakpointNumber).Key;
+                    if (exceptionName != null)
+                    {
+                        // The string to use when displaying which exception caused the breakpoint to hit.
+                        // It is empty if it uses the category name
+                        string displayException = string.Empty;
+
+                        if (exceptionName.Length < 1 || exceptionName == "*") // if exceptionName is "*", the exceptions category is selected
+                        {
+                            exceptionName = categorySettings.CategoryName;
+                        }
+                        else
+                        {
+                            displayException = string.Format(CultureInfo.InvariantCulture, " '{0}'", exceptionName);
+                        }
+
+                        string functionName = frame?.TryFindString("func");
+                        if (string.IsNullOrWhiteSpace(functionName))
+                        {
+                            exceptionDescription = string.Format(CultureInfo.CurrentCulture, ResourceStrings.Exception_Thrown, displayException, address);
+                        }
+                        else
+                        {
+                            exceptionDescription = string.Format(CultureInfo.CurrentCulture, ResourceStrings.Exception_Thrown_with_Source, displayException, address, functionName);
+                        }
+
+                        exceptionCategoryGuid = CppExceptionCategoryGuid;
+                        return true;
+
+                    }
+                }
+            }
+            return false;
+        }
+
+        private static void SetCategory(ExceptionCategorySettings categorySettings, ExceptionBreakpointStates newState)
         {
             using (var settingsUpdateHolder = categorySettings.GetSettingsUpdate())
             {
@@ -317,12 +379,13 @@ namespace Microsoft.MIDebugEngine
         {
             lock (_updateLock)
             {
-                if (_updateTask != null)
+                Task updateTask = _updateTask;
+                if (updateTask != null)
                 {
                     // If we are still delaying our processing, stop delaying it
-                    _updateDelayCancelSource.Cancel();
+                    _updateDelayCancelSource?.Cancel();
 
-                    return _updateTask;
+                    return updateTask;
                 }
                 else if (!_initialSettingssSent && _categoryMap.Count > 0)
                 {
@@ -333,7 +396,7 @@ namespace Microsoft.MIDebugEngine
                     // immediately cancel the delay since we don't want one
                     _updateDelayCancelSource = new CancellationTokenSource();
                     _updateDelayCancelSource.Cancel();
-                    Task updateTask = FlushSettingsUpdates();
+                    updateTask = FlushSettingsUpdates();
                     if (!updateTask.IsCompleted)
                     {
                         _updateTask = updateTask;
@@ -343,7 +406,7 @@ namespace Microsoft.MIDebugEngine
                 else
                 {
                     // No task is running, so just return an already signaled task
-                    return Task.FromResult<object>(null);
+                    return Task.CompletedTask;
                 }
             }
         }
@@ -398,7 +461,7 @@ namespace Microsoft.MIDebugEngine
                             continue;
                         }
 
-                        await UpdateCatagory(categoryPair.Key, categorySettings, settingsUpdate);
+                        await UpdateCategory(categoryPair.Key, categorySettings, settingsUpdate);
                     }
                 }
                 catch (MIException e)
@@ -425,22 +488,42 @@ namespace Microsoft.MIDebugEngine
             }
         }
 
-        private async Task UpdateCatagory(Guid categoryId, ExceptionCategorySettings categorySettings, SettingsUpdates updates)
+        private async Task UpdateCategory(Guid categoryId, ExceptionCategorySettings categorySettings, SettingsUpdates updates)
         {
             // Update the category
             if (updates.NewCategoryState.HasValue && (
-                updates.NewCategoryState.Value != ExceptionBreakpointState.None || // send down a rule if the category isn't in the default state
+                updates.NewCategoryState.Value != ExceptionBreakpointStates.None || // send down a rule if the category isn't in the default state
                 categorySettings.CurrentRules.Count != 0)) // Or if we have other rules for the category that we need to blow away
             {
-                ExceptionBreakpointState newCategoryState = updates.NewCategoryState.Value;
+                ExceptionBreakpointStates newCategoryState = updates.NewCategoryState.Value;
                 categorySettings.CategoryState = newCategoryState;
-                categorySettings.CurrentRules.Clear();
 
-                IEnumerable<ulong> breakpointIds = await _commandFactory.SetExceptionBreakpoints(categoryId, null, newCategoryState);
-                if (newCategoryState != ExceptionBreakpointState.None)
+                // remove exception breakpoints before categorySettings.CurrentRules is cleared
+                await _commandFactory.RemoveExceptionBreakpoint(categoryId, categorySettings.CurrentRules.Values);
+
+                lock (categorySettings.CurrentRules)
                 {
-                    ulong breakpointId = breakpointIds.Single();
-                    categorySettings.CurrentRules.Add("*", breakpointId);
+                    categorySettings.CurrentRules.Clear();
+                }
+
+                // only do a generic catch throw if C++ exceptions category is checked
+                if (newCategoryState != ExceptionBreakpointStates.None)
+                {
+                    try
+                    {
+                        IEnumerable<ulong> breakpointIds = await _commandFactory.SetExceptionBreakpoints(categoryId, null, newCategoryState);
+                        ulong breakpointId = breakpointIds.Single();
+                        lock (categorySettings.CurrentRules)
+                        {
+                            categorySettings.CurrentRules.Add("*", breakpointId);
+                        }
+                    }
+                    catch (NotSupportedException)
+                    {
+                        _canProcessExceptions = false;
+                        _callback.OnOutputMessage(new OutputMessage(ResourceStrings.Warning_ExceptionsNotSupported, enum_MESSAGETYPE.MT_OUTPUTSTRING, OutputMessage.Severity.Warning));
+                        return;
+                    }
                 }
             }
 
@@ -449,14 +532,17 @@ namespace Microsoft.MIDebugEngine
             {
                 // Detach these exceptions from 'CurrentRules'
                 List<ulong> breakpointsToRemove = new List<ulong>();
-                foreach (string exceptionToRemove in updates.RulesToRemove)
+                lock (categorySettings.CurrentRules)
                 {
-                    ulong breakpointId;
-                    if (!categorySettings.CurrentRules.TryGetValue(exceptionToRemove, out breakpointId))
-                        continue;
+                    foreach (string exceptionToRemove in updates.RulesToRemove)
+                    {
+                        ulong breakpointId;
+                        if (!categorySettings.CurrentRules.TryGetValue(exceptionToRemove, out breakpointId))
+                            continue;
 
-                    categorySettings.CurrentRules.Remove(exceptionToRemove);
-                    breakpointsToRemove.Add(breakpointId);
+                        categorySettings.CurrentRules.Remove(exceptionToRemove);
+                        breakpointsToRemove.Add(breakpointId);
+                    }
                 }
 
                 if (breakpointsToRemove.Count > 0)
@@ -466,31 +552,77 @@ namespace Microsoft.MIDebugEngine
             }
 
             // process any adds
-            foreach (IGrouping<ExceptionBreakpointState, string> grouping in updates.RulesToAdd.GroupBy((pair) => pair.Value, (pair) => pair.Key))
+            foreach (IGrouping<ExceptionBreakpointStates, string> grouping in updates.RulesToAdd.GroupBy((pair) => pair.Value, (pair) => pair.Key))
             {
                 IEnumerable<string> exceptionNames = grouping;
 
                 if (grouping.Key == categorySettings.CategoryState)
                 {
                     // A request to set an exception to the same state as the category is redundant unless we have previously changed the state of that exception to something else
-                    exceptionNames = exceptionNames.Intersect(categorySettings.CurrentRules.Keys);
+                    lock (categorySettings.CurrentRules)
+                    {
+                        exceptionNames = exceptionNames.Intersect(categorySettings.CurrentRules.Keys);
+                    }
                     if (!exceptionNames.Any())
                     {
                         continue; // no exceptions left, so ignore this group
                     }
                 }
 
-                IEnumerable<ulong> breakpointIds = await _commandFactory.SetExceptionBreakpoints(categoryId, exceptionNames, grouping.Key);
+                bool isBreakThrown = grouping.Key.HasFlag(ExceptionBreakpointStates.BreakThrown);
 
-                int count = exceptionNames.Zip(breakpointIds, (exceptionName, breakpointId) =>
+                if (!categorySettings.CategoryState.HasFlag(ExceptionBreakpointStates.BreakThrown) && isBreakThrown)
                 {
-                    categorySettings.CurrentRules[exceptionName] = breakpointId;
-                    return 1;
-                }).Sum();
+                    try
+                    {
+                        IEnumerable<ulong> breakpointIds = await _commandFactory.SetExceptionBreakpoints(categoryId, exceptionNames, grouping.Key);
+
+                        lock (categorySettings.CurrentRules)
+                        {
+                            int count = exceptionNames.Zip(breakpointIds, (exceptionName, breakpointId) =>
+                            {
+                            // remove old breakpoint if exceptionName is in categorySettings.CurrentRules.Keys
+                            if (categorySettings.CurrentRules.ContainsKey(exceptionName))
+                                {
+                                    _commandFactory.RemoveExceptionBreakpoint(categoryId, new ulong[] { categorySettings.CurrentRules[exceptionName] });
+                                }
+                                categorySettings.CurrentRules[exceptionName] = breakpointId;
+                                return 1;
+                            }).Sum();
 
 #if DEBUG
-                Debug.Assert(count == exceptionNames.Count());
+                            Debug.Assert(count == exceptionNames.Count());
 #endif
+                        }
+                    }
+                    catch (NotSupportedException)
+                    {
+                        _canProcessExceptions = false;
+                        _callback.OnOutputMessage(new OutputMessage(ResourceStrings.Warning_ExceptionsNotSupported, enum_MESSAGETYPE.MT_OUTPUTSTRING, OutputMessage.Severity.Warning));
+                        return;
+                    }
+                }
+                else if (grouping.Key != categorySettings.CategoryState && !isBreakThrown)
+                {
+                    // Send warning when there are unchecked exceptions in a checked exceptions category
+                    _callback.OnOutputMessage(new OutputMessage(ResourceStrings.Warning_UncheckedExceptionsInCheckedCategory, enum_MESSAGETYPE.MT_OUTPUTSTRING, OutputMessage.Severity.Warning));
+                }
+                if (!isBreakThrown)
+                {
+                    ulong breakpointId;
+                    lock (categorySettings.CurrentRules)
+                    {
+                        foreach (string exceptionName in exceptionNames)
+                        {
+                            if (!categorySettings.CurrentRules.TryGetValue(exceptionName, out breakpointId))
+                                continue;
+
+                            _commandFactory.RemoveExceptionBreakpoint(categoryId, new ulong[] { breakpointId });
+                            categorySettings.CurrentRules.Remove(exceptionName);
+                        }
+                    }
+                }
+                
             }
         }
 
@@ -523,14 +655,14 @@ namespace Microsoft.MIDebugEngine
             return new ReadOnlyDictionary<Guid, ExceptionCategorySettings>(categoryMap);
         }
 
-        private static ExceptionBreakpointState ToExceptionBreakpointState(enum_EXCEPTION_STATE ad7ExceptionState)
+        private static ExceptionBreakpointStates ToExceptionBreakpointState(enum_EXCEPTION_STATE ad7ExceptionState)
         {
-            ExceptionBreakpointState returnValue = ExceptionBreakpointState.None;
+            ExceptionBreakpointStates returnValue = ExceptionBreakpointStates.None;
 
             if ((ad7ExceptionState & (enum_EXCEPTION_STATE.EXCEPTION_STOP_FIRST_CHANCE | enum_EXCEPTION_STATE.EXCEPTION_STOP_USER_FIRST_CHANCE)) != 0)
-                returnValue |= ExceptionBreakpointState.BreakThrown;
+                returnValue |= ExceptionBreakpointStates.BreakThrown;
             if (ad7ExceptionState.HasFlag(enum_EXCEPTION_STATE.EXCEPTION_STOP_USER_UNCAUGHT))
-                returnValue |= ExceptionBreakpointState.BreakUserHandled;
+                returnValue |= ExceptionBreakpointStates.BreakUserHandled;
 
             return returnValue;
         }

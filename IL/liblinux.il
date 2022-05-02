@@ -1,3 +1,8 @@
+.assembly extern 'Microsoft.VisualStudio.VC.CompilerQuery'
+{
+	.publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A)
+	.ver 17:0:0:0
+}
 .assembly extern System
 {
 	.publickeytoken = (B7 7A 5C 56 19 34 E0 89)
@@ -20,14 +25,15 @@
 }
 .assembly liblinux
 {
-	.custom instance void [mscorlib]System.CLSCompliantAttribute::.ctor(bool) = { bool(true) }
+	.custom instance void [mscorlib]System.CLSCompliantAttribute::.ctor(bool) = { bool(false) }
 	.custom instance void [mscorlib]System.Runtime.CompilerServices.ExtensionAttribute::.ctor() = { }
 	.custom instance void [mscorlib]System.Runtime.CompilerServices.InternalsVisibleToAttribute::.ctor(string) = { string('liblinux.IO, PublicKey=002400000480000094000000060200000024000052534131000400000100010007d1fa57c4aed9f0a32e84aa0faefd0de9e8fd6aec8f87fb03766c834c99921eb23be79ad9d5dcc1dd9ad236132102900b723cf980957fc4e177108fc607774f29e8320e92ea05ece4e821c0a5efe8f1645c4c0c93c1ab99285d622caa652c1dfad63d745d6f2de5f17e5eaf0fc4963d261c8a12436518206dc093344d5ad293') }
+	.custom instance void [mscorlib]System.Runtime.CompilerServices.InternalsVisibleToAttribute::.ctor(string) = { string('liblinux.Local, PublicKey=002400000480000094000000060200000024000052534131000400000100010007d1fa57c4aed9f0a32e84aa0faefd0de9e8fd6aec8f87fb03766c834c99921eb23be79ad9d5dcc1dd9ad236132102900b723cf980957fc4e177108fc607774f29e8320e92ea05ece4e821c0a5efe8f1645c4c0c93c1ab99285d622caa652c1dfad63d745d6f2de5f17e5eaf0fc4963d261c8a12436518206dc093344d5ad293') }
 	.custom instance void [mscorlib]System.Runtime.CompilerServices.InternalsVisibleToAttribute::.ctor(string) = { string('liblinux.Tests, PublicKey=002400000480000094000000060200000024000052534131000400000100010007d1fa57c4aed9f0a32e84aa0faefd0de9e8fd6aec8f87fb03766c834c99921eb23be79ad9d5dcc1dd9ad236132102900b723cf980957fc4e177108fc607774f29e8320e92ea05ece4e821c0a5efe8f1645c4c0c93c1ab99285d622caa652c1dfad63d745d6f2de5f17e5eaf0fc4963d261c8a12436518206dc093344d5ad293') }
 	.custom instance void [mscorlib]System.Runtime.InteropServices.ComVisibleAttribute::.ctor(bool) = { bool(false) }
 	.publickey = (00 24 00 00 04 80 00 00 94 00 00 00 06 02 00 00 00 24 00 00 52 53 41 31 00 04 00 00 01 00 01 00 07 D1 FA 57 C4 AE D9 F0 A3 2E 84 AA 0F AE FD 0D E9 E8 FD 6A EC 8F 87 FB 03 76 6C 83 4C 99 92 1E B2 3B E7 9A D9 D5 DC C1 DD 9A D2 36 13 21 02 90 0B 72 3C F9 80 95 7F C4 E1 77 10 8F C6 07 77 4F 29 E8 32 0E 92 EA 05 EC E4 E8 21 C0 A5 EF E8 F1 64 5C 4C 0C 93 C1 AB 99 28 5D 62 2C AA 65 2C 1D FA D6 3D 74 5D 6F 2D E5 F1 7E 5E AF 0F C4 96 3D 26 1C 8A 12 43 65 18 20 6D C0 93 34 4D 5A D2 93)
 	.hash algorithm 0x00008004
-	.ver 16:0:0:0
+	.ver 17:0:0:0
 }
 .namespace liblinux
 {
@@ -38,10 +44,57 @@
 		.field static public literal valuetype liblinux.AuthenticationMode Password = int32(0x00000000)
 		.field static public literal valuetype liblinux.AuthenticationMode PrivateKey = int32(0x00000001)
 	}
+	.class public ConnectionFactory
+		extends [mscorlib]System.Object
+		implements liblinux.IConnectionFactory
+	{
+		.method public hidebysig 
+			instance class [mscorlib]'System.Threading.Tasks.Task`1'<class liblinux.UnixSystem> CreateConnectionAsync(valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot 
+			instance class [mscorlib]'System.Threading.Tasks.Task`1'<class liblinux.Remoting.ConnectionAttemptResult> TestConnectionAsync(class liblinux.Remoting.AddConnectionInfo info, class liblinux.Remoting.AuthInfo auth, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+			ret
+		}
+		.method public hidebysig 
+			instance class [mscorlib]'System.Threading.Tasks.Task`1'<class liblinux.Remoting.ConnectionAttemptResult> TestConnectionAsync(class liblinux.UnixSystem unixSystem, class liblinux.Remoting.AddConnectionInfo info, class liblinux.Remoting.AuthInfo auth, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot 
+			instance class [mscorlib]'System.Threading.Tasks.Task`1'<class liblinux.Remoting.ConnectionAttemptResult> TestConnectionAsync(int32 connectionId, string version, string fingerPrint, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+			ret
+		}
+		.method public hidebysig 
+			instance class [mscorlib]'System.Threading.Tasks.Task`1'<class liblinux.Remoting.ConnectionAttemptResult> TestConnectionAsync(class liblinux.UnixSystem system, class liblinux.Persistence.ConnectionInfoStore store, int32 connectionId, string fingerPrint, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+			ret
+		}
+		.method public hidebysig specialname 
+			instance void .ctor()
+		{
+			ret
+		}
+	}
 	.class public abstract ConnectionInfo
 		extends [mscorlib]System.Object
 		implements liblinux.IConnectionInfo
 	{
+		.method public hidebysig specialname 
+			instance bool get_IsDefault()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance void set_IsDefault(bool 'value')
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
 		.method public hidebysig specialname 
 			instance string get_HostNameOrAddress()
 		{
@@ -72,7 +125,7 @@
 		{
 			ret
 		}
-		.method public hidebysig specialname 
+		.method public final virtual hidebysig newslot specialname 
 			instance string get_UserName()
 		{
 			ret
@@ -87,9 +140,19 @@
 		{
 			ret
 		}
-		.method famorassem virtual hidebysig newslot abstract specialname 
+		.method public final virtual hidebysig newslot specialname 
+			instance string get_HostName()
+		{
+			ret
+		}
+		.method public virtual hidebysig newslot abstract specialname 
 			instance valuetype liblinux.AuthenticationMode get_AuthenticationMode()
 		{
+		}
+		.method public hidebysig specialname 
+			instance void .ctor(valuetype [mscorlib]'System.Nullable`1'<int32> id, bool isDefault)
+		{
+			ret
 		}
 		.method public virtual hidebysig 
 			instance bool Equals(object obj)
@@ -111,13 +174,18 @@
 		{
 			ret
 		}
-		.method famorassem virtual hidebysig newslot 
-			instance void OnAfterConnect(bool succeeded)
+		.method public hidebysig specialname 
+			instance string get_Fingerprint()
 		{
 			ret
 		}
-		.method family hidebysig specialname 
-			instance void .ctor()
+		.method public hidebysig specialname 
+			instance void set_Fingerprint(string 'value')
+		{
+			ret
+		}
+		.method famorassem virtual hidebysig newslot 
+			instance void OnAfterConnect(bool succeeded)
 		{
 			ret
 		}
@@ -125,10 +193,24 @@
 		{
 			.get instance valuetype liblinux.AuthenticationMode liblinux.ConnectionInfo::get_AuthenticationMode()
 		}
+		.property instance string Fingerprint()
+		{
+			.get instance string liblinux.ConnectionInfo::get_Fingerprint()
+			.set instance void liblinux.ConnectionInfo::set_Fingerprint(string)
+		}
+		.property instance string HostName()
+		{
+			.get instance string liblinux.ConnectionInfo::get_HostName()
+		}
 		.property instance string HostNameOrAddress()
 		{
 			.get instance string liblinux.ConnectionInfo::get_HostNameOrAddress()
 			.set instance void liblinux.ConnectionInfo::set_HostNameOrAddress(string)
+		}
+		.property instance bool IsDefault()
+		{
+			.get instance bool liblinux.ConnectionInfo::get_IsDefault()
+			.set instance void liblinux.ConnectionInfo::set_IsDefault(bool)
 		}
 		.property instance string Name()
 		{
@@ -192,27 +274,201 @@
 			ret
 		}
 	}
+	.class public ExceptionEventArgs
+		extends [mscorlib]System.EventArgs
+	{
+		.method public hidebysig specialname 
+			instance void .ctor(class [mscorlib]System.Exception exception)
+		{
+			ret
+		}
+		.method public hidebysig specialname 
+			instance class [mscorlib]System.Exception get_Exception()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.property instance class [mscorlib]System.Exception Exception()
+		{
+			.get instance class [mscorlib]System.Exception liblinux.ExceptionEventArgs::get_Exception()
+		}
+	}
+	.class public HostKeyVerifier
+		extends [mscorlib]System.Object
+	{
+		.class nested public HostKeyValidationEventArgs
+			extends [mscorlib]System.EventArgs
+		{
+			.method public hidebysig specialname 
+				instance bool get_Success()
+			{
+				.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+				ret
+			}
+			.method public hidebysig specialname 
+				instance string get_HostName()
+			{
+				.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+				ret
+			}
+			.method public hidebysig specialname 
+				instance string get_HostKeyName()
+			{
+				.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+				ret
+			}
+			.method public hidebysig specialname 
+				instance string get_StoredFingerPrint()
+			{
+				.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+				ret
+			}
+			.method public hidebysig specialname 
+				instance string get_CurrentFingerPrint()
+			{
+				.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+				ret
+			}
+			.property instance string CurrentFingerPrint()
+			{
+				.get instance string liblinux.HostKeyVerifier/HostKeyValidationEventArgs::get_CurrentFingerPrint()
+			}
+			.property instance string HostKeyName()
+			{
+				.get instance string liblinux.HostKeyVerifier/HostKeyValidationEventArgs::get_HostKeyName()
+			}
+			.property instance string HostName()
+			{
+				.get instance string liblinux.HostKeyVerifier/HostKeyValidationEventArgs::get_HostName()
+			}
+			.property instance string StoredFingerPrint()
+			{
+				.get instance string liblinux.HostKeyVerifier/HostKeyValidationEventArgs::get_StoredFingerPrint()
+			}
+			.property instance bool Success()
+			{
+				.get instance bool liblinux.HostKeyVerifier/HostKeyValidationEventArgs::get_Success()
+			}
+		}
+		.method public static hidebysig specialname 
+			void add_HostKeyValidation(class [mscorlib]'System.EventHandler`1'<class liblinux.HostKeyVerifier/HostKeyValidationEventArgs> 'value')
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public static hidebysig specialname 
+			void remove_HostKeyValidation(class [mscorlib]'System.EventHandler`1'<class liblinux.HostKeyVerifier/HostKeyValidationEventArgs> 'value')
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public static hidebysig 
+			string FingerPrintToString(uint8[] ba, valuetype [mscorlib]System.Security.Cryptography.HashAlgorithmName fingerPrintName)
+		{
+			ret
+		}
+		.event class [mscorlib]'System.EventHandler`1'<class liblinux.HostKeyVerifier/HostKeyValidationEventArgs> HostKeyValidation
+		{
+			.addon void liblinux.HostKeyVerifier::add_HostKeyValidation(class [mscorlib]'System.EventHandler`1'<class liblinux.HostKeyVerifier/HostKeyValidationEventArgs>)
+			.removeon void liblinux.HostKeyVerifier::remove_HostKeyValidation(class [mscorlib]'System.EventHandler`1'<class liblinux.HostKeyVerifier/HostKeyValidationEventArgs>)
+		}
+	}
+	.class public interface abstract IConnectionFactory
+	{
+		.method public virtual hidebysig newslot abstract 
+			instance class [mscorlib]'System.Threading.Tasks.Task`1'<class liblinux.Remoting.ConnectionAttemptResult> TestConnectionAsync(class liblinux.Remoting.AddConnectionInfo info, class liblinux.Remoting.AuthInfo auth, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance class [mscorlib]'System.Threading.Tasks.Task`1'<class liblinux.Remoting.ConnectionAttemptResult> TestConnectionAsync(int32 connectionId, string version, string fingerPrint, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+		}
+	}
 	.class public interface abstract IConnectionInfo
 	{
 		.method public virtual hidebysig newslot abstract specialname 
 			instance string get_Name()
 		{
 		}
+		.method public virtual hidebysig newslot abstract specialname 
+			instance string get_UserName()
+		{
+		}
+		.method public virtual hidebysig newslot abstract specialname 
+			instance string get_HostName()
+		{
+		}
+		.property instance string HostName()
+		{
+			.get instance string liblinux.IConnectionInfo::get_HostName()
+		}
 		.property instance string Name()
 		{
 			.get instance string liblinux.IConnectionInfo::get_Name()
 		}
+		.property instance string UserName()
+		{
+			.get instance string liblinux.IConnectionInfo::get_UserName()
+		}
 	}
 	.class public interface abstract IRemoteSystem
-		implements liblinux.IRemoteSystemBare, [mscorlib]System.IDisposable
+		implements [mscorlib]System.IDisposable
 	{
 		.method public virtual hidebysig newslot abstract specialname 
+			instance class liblinux.SystemProperties get_Properties()
+		{
+		}
+		.method public virtual hidebysig newslot abstract specialname 
+			instance class liblinux.IConnectionInfo get_TargetConnection()
+		{
+		}
+		.method public virtual hidebysig newslot abstract specialname 
 			instance class 'liblinux.IO.IRemoteFileSystem' get_FileSystem()
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance class liblinux.Shell.IShell CreateShell()
+		{
+		}
+		.method public virtual hidebysig newslot abstract specialname 
+			instance class liblinux.Shell.ISimpleShell get_Shell()
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance class liblinux.Shell.IStreamableCommand CreateStreamableCommand(string commandText)
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance class liblinux.Shell.INonHostedCommand CreateCommand(string commandText)
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance void ExecuteCommand(class liblinux.Shell.ICommand command, valuetype [mscorlib]'System.Nullable`1'<valuetype [mscorlib]System.TimeSpan> timeout)
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance void StartCommand(class liblinux.Shell.ICommand command, valuetype [mscorlib]'System.Nullable`1'<valuetype [mscorlib]System.TimeSpan> timeout)
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance bool ExecutableExists(string path)
 		{
 		}
 		.property instance class 'liblinux.IO.IRemoteFileSystem' FileSystem()
 		{
 			.get instance class 'liblinux.IO.IRemoteFileSystem' liblinux.IRemoteSystem::get_FileSystem()
+		}
+		.property instance class liblinux.SystemProperties Properties()
+		{
+			.get instance class liblinux.SystemProperties liblinux.IRemoteSystem::get_Properties()
+		}
+		.property instance class liblinux.Shell.ISimpleShell Shell()
+		{
+			.get instance class liblinux.Shell.ISimpleShell liblinux.IRemoteSystem::get_Shell()
+		}
+		.property instance class liblinux.IConnectionInfo TargetConnection()
+		{
+			.get instance class liblinux.IConnectionInfo liblinux.IRemoteSystem::get_TargetConnection()
 		}
 	}
 	.class public interface abstract IRemoteSystemBare
@@ -321,66 +577,232 @@
 			.get instance class liblinux.Shell.ICommandingShell liblinux.IRemoteSystemBare::get_Shell()
 		}
 	}
-	.class public LinuxSystem
-		extends liblinux.UnixSystem
+	.class public interface abstract IRemoteSystemFactory
 	{
-		.method public hidebysig specialname 
-			instance void .ctor()
+		.method public virtual hidebysig newslot abstract 
+			instance class liblinux.IRemoteSystem CreateRemoteSystem()
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance class [mscorlib]'System.Threading.Tasks.Task`1'<class liblinux.IRemoteSystem> CreateRemoteSystemAsync(valuetype [mscorlib]System.Threading.CancellationToken token)
+		{
+		}
+		.method public virtual hidebysig newslot abstract specialname 
+			instance class liblinux.IConnectionInfo get_ConnectionInfo()
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance class liblinux.Services.RemoteCompiler CreateRemoteCompiler(class liblinux.Services.RemoteCompilerIOImplBase ioImpl)
+		{
+		}
+		.property instance class liblinux.IConnectionInfo ConnectionInfo()
+		{
+			.get instance class liblinux.IConnectionInfo liblinux.IRemoteSystemFactory::get_ConnectionInfo()
+		}
+	}
+	.class public interface abstract ITelemetryService
+	{
+		.class nested public sealed ConnectionData
+			extends [mscorlib]System.Object
+		{
+			.method public hidebysig specialname 
+				instance string[] get_ServerSupportedKeyExchangeAlgorithms()
+			{
+				.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+				ret
+			}
+			.method public hidebysig specialname 
+				instance string[] get_ServerSupportedServerHostKeyAlgorithms()
+			{
+				.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+				ret
+			}
+			.method public hidebysig specialname 
+				instance string[] get_ServerSupportedEncryptionAlgorithmsClientToServer()
+			{
+				.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+				ret
+			}
+			.method public hidebysig specialname 
+				instance string[] get_ServerSupportedEncryptionAlgorithmsServerToClient()
+			{
+				.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+				ret
+			}
+			.method public hidebysig specialname 
+				instance string[] get_ServerSupportedMacAlgorithmsClientToServer()
+			{
+				.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+				ret
+			}
+			.method public hidebysig specialname 
+				instance string[] get_ServerSupportedMacAlgorithmsServerToClient()
+			{
+				.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+				ret
+			}
+			.method public hidebysig specialname 
+				instance string[] get_ServerSupportedCompressionAlgorithmsClientToServer()
+			{
+				.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+				ret
+			}
+			.method public hidebysig specialname 
+				instance string[] get_ServerSupportedCompressionAlgorithmsServerToClient()
+			{
+				.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+				ret
+			}
+			.method public hidebysig specialname 
+				instance string get_CurrentKeyExchangeAlgorithm()
+			{
+				.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+				ret
+			}
+			.method public hidebysig specialname 
+				instance string get_CurrentServerEncryption()
+			{
+				.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+				ret
+			}
+			.method public hidebysig specialname 
+				instance string get_CurrentClientEncryption()
+			{
+				.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+				ret
+			}
+			.method public hidebysig specialname 
+				instance string get_CurrentServerHmacAlgorithm()
+			{
+				.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+				ret
+			}
+			.method public hidebysig specialname 
+				instance string get_CurrentClientHmacAlgorithm()
+			{
+				.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+				ret
+			}
+			.method public hidebysig specialname 
+				instance string get_CurrentHostKeyAlgorithm()
+			{
+				.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+				ret
+			}
+			.method public hidebysig specialname 
+				instance string get_CurrentServerCompressionAlgorithm()
+			{
+				.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+				ret
+			}
+			.method public hidebysig specialname 
+				instance string get_CurrentClientCompressionAlgorithm()
+			{
+				.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+				ret
+			}
+			.method public hidebysig specialname 
+				instance valuetype liblinux.AuthenticationMode get_AuthenticationMode()
+			{
+				.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+				ret
+			}
+			.property instance valuetype liblinux.AuthenticationMode AuthenticationMode()
+			{
+				.get instance valuetype liblinux.AuthenticationMode liblinux.ITelemetryService/ConnectionData::get_AuthenticationMode()
+			}
+			.property instance string CurrentClientCompressionAlgorithm()
+			{
+				.get instance string liblinux.ITelemetryService/ConnectionData::get_CurrentClientCompressionAlgorithm()
+			}
+			.property instance string CurrentClientEncryption()
+			{
+				.get instance string liblinux.ITelemetryService/ConnectionData::get_CurrentClientEncryption()
+			}
+			.property instance string CurrentClientHmacAlgorithm()
+			{
+				.get instance string liblinux.ITelemetryService/ConnectionData::get_CurrentClientHmacAlgorithm()
+			}
+			.property instance string CurrentHostKeyAlgorithm()
+			{
+				.get instance string liblinux.ITelemetryService/ConnectionData::get_CurrentHostKeyAlgorithm()
+			}
+			.property instance string CurrentKeyExchangeAlgorithm()
+			{
+				.get instance string liblinux.ITelemetryService/ConnectionData::get_CurrentKeyExchangeAlgorithm()
+			}
+			.property instance string CurrentServerCompressionAlgorithm()
+			{
+				.get instance string liblinux.ITelemetryService/ConnectionData::get_CurrentServerCompressionAlgorithm()
+			}
+			.property instance string CurrentServerEncryption()
+			{
+				.get instance string liblinux.ITelemetryService/ConnectionData::get_CurrentServerEncryption()
+			}
+			.property instance string CurrentServerHmacAlgorithm()
+			{
+				.get instance string liblinux.ITelemetryService/ConnectionData::get_CurrentServerHmacAlgorithm()
+			}
+			.property instance string[] ServerSupportedCompressionAlgorithmsClientToServer()
+			{
+				.get instance string[] liblinux.ITelemetryService/ConnectionData::get_ServerSupportedCompressionAlgorithmsClientToServer()
+			}
+			.property instance string[] ServerSupportedCompressionAlgorithmsServerToClient()
+			{
+				.get instance string[] liblinux.ITelemetryService/ConnectionData::get_ServerSupportedCompressionAlgorithmsServerToClient()
+			}
+			.property instance string[] ServerSupportedEncryptionAlgorithmsClientToServer()
+			{
+				.get instance string[] liblinux.ITelemetryService/ConnectionData::get_ServerSupportedEncryptionAlgorithmsClientToServer()
+			}
+			.property instance string[] ServerSupportedEncryptionAlgorithmsServerToClient()
+			{
+				.get instance string[] liblinux.ITelemetryService/ConnectionData::get_ServerSupportedEncryptionAlgorithmsServerToClient()
+			}
+			.property instance string[] ServerSupportedKeyExchangeAlgorithms()
+			{
+				.get instance string[] liblinux.ITelemetryService/ConnectionData::get_ServerSupportedKeyExchangeAlgorithms()
+			}
+			.property instance string[] ServerSupportedMacAlgorithmsClientToServer()
+			{
+				.get instance string[] liblinux.ITelemetryService/ConnectionData::get_ServerSupportedMacAlgorithmsClientToServer()
+			}
+			.property instance string[] ServerSupportedMacAlgorithmsServerToClient()
+			{
+				.get instance string[] liblinux.ITelemetryService/ConnectionData::get_ServerSupportedMacAlgorithmsServerToClient()
+			}
+			.property instance string[] ServerSupportedServerHostKeyAlgorithms()
+			{
+				.get instance string[] liblinux.ITelemetryService/ConnectionData::get_ServerSupportedServerHostKeyAlgorithms()
+			}
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance void LogInstalledTools(string source, class liblinux.IRemoteSystem system)
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance void LogConnection(class liblinux.ITelemetryService/ConnectionData data)
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance void LogFailedKeyExchange(string reason, class [mscorlib]'System.Collections.Generic.IEnumerable`1'<string> serverSupportedAlgorithms)
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance void LogUnsupportedPrivateKey(string keyFormat)
+		{
+		}
+	}
+	.class public abstract sealed InstalledToolsTest
+		extends [mscorlib]System.Object
+	{
+		.method public static hidebysig 
+			class [mscorlib]'System.Collections.Generic.IReadOnlyDictionary`2'<string,bool> TestSystem(class liblinux.IRemoteSystem system)
 		{
 			ret
 		}
-		.method public hidebysig specialname 
-			instance void .ctor(class liblinux.ConnectionInfo connectionInfo)
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, string userName, class [mscorlib]System.Security.SecureString password)
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, int32 timeout, string userName, class [mscorlib]System.Security.SecureString password)
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, valuetype [mscorlib]System.TimeSpan timeout, string userName, class [mscorlib]System.Security.SecureString password)
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, int32 port, int32 timeout, string userName, class [mscorlib]System.Security.SecureString password)
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, int32 port, valuetype [mscorlib]System.TimeSpan timeout, string userName, class [mscorlib]System.Security.SecureString password)
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, string userName, string privateFileName, class [mscorlib]System.Security.SecureString passphrase)
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, int32 timeout, string userName, string privateFileName, class [mscorlib]System.Security.SecureString passphrase)
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, valuetype [mscorlib]System.TimeSpan timeout, string userName, string privateFileName, class [mscorlib]System.Security.SecureString passphrase)
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, int32 port, int32 timeout, string userName, string privateFileName, class [mscorlib]System.Security.SecureString passphrase)
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, int32 port, valuetype [mscorlib]System.TimeSpan timeout, string userName, string privateFileName, class [mscorlib]System.Security.SecureString passphrase)
+		.method public static hidebysig 
+			class [mscorlib]'System.Collections.Generic.IReadOnlyDictionary`2'<string,bool> TestSystem(class liblinux.IRemoteSystem system, class [mscorlib]'System.Collections.Generic.IReadOnlyDictionary`2'<string,string> toolCommands)
 		{
 			ret
 		}
@@ -423,34 +845,51 @@
 		{
 			ret
 		}
-		.method famorassem virtual hidebysig specialname 
+		.method public virtual hidebysig specialname 
 			instance valuetype liblinux.AuthenticationMode get_AuthenticationMode()
 		{
 			ret
 		}
 		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, string userName, class [mscorlib]System.Security.SecureString password)
+			instance void .ctor(string hostNameOrAddress, string userName, class [mscorlib]System.Security.SecureString password, [opt] valuetype [mscorlib]'System.Nullable`1'<int32> id, [opt] bool isDefault)
 		{
+			.param [4] = nullref
+			.param [5] = bool(false)
 			ret
 		}
 		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, int32 timeout, string userName, class [mscorlib]System.Security.SecureString password)
+			instance void .ctor(string hostNameOrAddress, int32 timeout, string userName, class [mscorlib]System.Security.SecureString password, [opt] valuetype [mscorlib]'System.Nullable`1'<int32> id, [opt] bool isDefault)
 		{
+			.param [5] = nullref
+			.param [6] = bool(false)
 			ret
 		}
 		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, valuetype [mscorlib]System.TimeSpan timeout, string userName, class [mscorlib]System.Security.SecureString password)
+			instance void .ctor(string hostNameOrAddress, valuetype [mscorlib]System.TimeSpan timeout, string userName, class [mscorlib]System.Security.SecureString password, [opt] valuetype [mscorlib]'System.Nullable`1'<int32> id, [opt] bool isDefault)
 		{
+			.param [5] = nullref
+			.param [6] = bool(false)
 			ret
 		}
 		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, int32 port, int32 timeout, string userName, class [mscorlib]System.Security.SecureString password)
+			instance void .ctor(string hostNameOrAddress, int32 port, int32 timeout, string userName, class [mscorlib]System.Security.SecureString password, [opt] valuetype [mscorlib]'System.Nullable`1'<int32> id, [opt] bool isDefault)
 		{
+			.param [6] = nullref
+			.param [7] = bool(false)
 			ret
 		}
 		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, int32 port, valuetype [mscorlib]System.TimeSpan timeout, string userName, class [mscorlib]System.Security.SecureString password)
+			instance void .ctor(string hostNameOrAddress, int32 port, valuetype [mscorlib]System.TimeSpan timeout, string userName, class [mscorlib]System.Security.SecureString password, [opt] valuetype [mscorlib]'System.Nullable`1'<int32> id, [opt] bool isDefault)
 		{
+			.param [6] = nullref
+			.param [7] = bool(false)
+			ret
+		}
+		.method public hidebysig specialname 
+			instance void .ctor(string hostNameOrAddress, int32 port, valuetype [mscorlib]System.TimeSpan timeout, string userName, class [mscorlib]System.Security.SecureString password, string fingerPrint, [opt] valuetype [mscorlib]'System.Nullable`1'<int32> id, [opt] bool isDefault)
+		{
+			.param [7] = nullref
+			.param [8] = bool(false)
 			ret
 		}
 		.property instance valuetype liblinux.AuthenticationMode AuthenticationMode()
@@ -461,84 +900,6 @@
 		{
 			.get instance class [mscorlib]System.Security.SecureString liblinux.PasswordConnectionInfo::get_Password()
 			.set instance void liblinux.PasswordConnectionInfo::set_Password(class [mscorlib]System.Security.SecureString)
-		}
-	}
-	.class public sealed Pi
-		extends liblinux.LinuxSystem
-	{
-		.method public hidebysig specialname 
-			instance valuetype liblinux.ModelId get_ModelId()
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void .ctor()
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void .ctor(class liblinux.ConnectionInfo connectionInfo)
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, string userName, class [mscorlib]System.Security.SecureString password)
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, int32 timeout, string userName, class [mscorlib]System.Security.SecureString password)
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, valuetype [mscorlib]System.TimeSpan timeout, string userName, class [mscorlib]System.Security.SecureString password)
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, int32 port, int32 timeout, string userName, class [mscorlib]System.Security.SecureString password)
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, int32 port, valuetype [mscorlib]System.TimeSpan timeout, string userName, class [mscorlib]System.Security.SecureString password)
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, string userName, string privateFileName, class [mscorlib]System.Security.SecureString passphrase)
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, int32 timeout, string userName, string privateFileName, class [mscorlib]System.Security.SecureString passphrase)
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, valuetype [mscorlib]System.TimeSpan timeout, string userName, string privateFileName, class [mscorlib]System.Security.SecureString passphrase)
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, int32 port, int32 timeout, string userName, string privateFileName, class [mscorlib]System.Security.SecureString passphrase)
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, int32 port, valuetype [mscorlib]System.TimeSpan timeout, string userName, string privateFileName, class [mscorlib]System.Security.SecureString passphrase)
-		{
-			ret
-		}
-		.method family virtual hidebysig 
-			instance void OnConnected()
-		{
-			ret
-		}
-		.property instance valuetype liblinux.ModelId ModelId()
-		{
-			.get instance valuetype liblinux.ModelId liblinux.Pi::get_ModelId()
 		}
 	}
 	.class public PrivateKeyConnectionInfo
@@ -564,34 +925,45 @@
 		{
 			ret
 		}
-		.method famorassem virtual hidebysig specialname 
+		.method public virtual hidebysig specialname 
 			instance valuetype liblinux.AuthenticationMode get_AuthenticationMode()
 		{
 			ret
 		}
 		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, string userName, string privateFileName, class [mscorlib]System.Security.SecureString passphrase)
+			instance void .ctor(string hostNameOrAddress, string userName, string privateFileName, class [mscorlib]System.Security.SecureString passphrase, [opt] valuetype [mscorlib]'System.Nullable`1'<int32> id, [opt] bool isDefault)
 		{
+			.param [5] = nullref
+			.param [6] = bool(false)
 			ret
 		}
 		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, int32 timeout, string userName, string privateFileName, class [mscorlib]System.Security.SecureString passphrase)
+			instance void .ctor(string hostNameOrAddress, int32 timeout, string userName, string privateFileName, class [mscorlib]System.Security.SecureString passphrase, [opt] valuetype [mscorlib]'System.Nullable`1'<int32> id, [opt] bool isDefault)
 		{
+			.param [6] = nullref
+			.param [7] = bool(false)
 			ret
 		}
 		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, valuetype [mscorlib]System.TimeSpan timeout, string userName, string privateFileName, class [mscorlib]System.Security.SecureString passphrase)
+			instance void .ctor(string hostNameOrAddress, valuetype [mscorlib]System.TimeSpan timeout, string userName, string privateFileName, class [mscorlib]System.Security.SecureString passphrase, [opt] valuetype [mscorlib]'System.Nullable`1'<int32> id, [opt] bool isDefault)
 		{
+			.param [6] = nullref
+			.param [7] = bool(false)
 			ret
 		}
 		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, int32 port, int32 timeout, string userName, string privateFileName, class [mscorlib]System.Security.SecureString passphrase)
+			instance void .ctor(string hostNameOrAddress, int32 port, int32 timeout, string userName, string privateFileName, class [mscorlib]System.Security.SecureString passphrase, [opt] valuetype [mscorlib]'System.Nullable`1'<int32> id, [opt] bool isDefault)
 		{
+			.param [7] = nullref
+			.param [8] = bool(false)
 			ret
 		}
 		.method public hidebysig specialname 
-			instance void .ctor(string hostNameOrAddress, int32 port, valuetype [mscorlib]System.TimeSpan timeout, string userName, string privateFileName, class [mscorlib]System.Security.SecureString passphrase)
+			instance void .ctor(string hostNameOrAddress, int32 port, valuetype [mscorlib]System.TimeSpan timeout, string userName, string privateFileName, class [mscorlib]System.Security.SecureString passphrase, [opt] valuetype [mscorlib]'System.Nullable`1'<int32> id, [opt] bool isDefault, [opt] string fingerPrint)
 		{
+			.param [7] = nullref
+			.param [8] = bool(false)
+			.param [9] = nullref
 			ret
 		}
 		.property instance valuetype liblinux.AuthenticationMode AuthenticationMode()
@@ -670,6 +1042,16 @@
 		extends liblinux.ExceptionBase
 	{
 		.method public hidebysig specialname 
+			instance string get_Fingerprint()
+		{
+			ret
+		}
+		.method public hidebysig specialname 
+			instance string get_HostKeyName()
+		{
+			ret
+		}
+		.method public hidebysig specialname 
 			instance void .ctor()
 		{
 			ret
@@ -683,6 +1065,19 @@
 			instance void .ctor(string message, class [mscorlib]System.Exception innerException)
 		{
 			ret
+		}
+		.method public hidebysig specialname 
+			instance void .ctor(string message, class [mscorlib]System.Exception innerException, string fingerprint, string hostKeyName)
+		{
+			ret
+		}
+		.property instance string Fingerprint()
+		{
+			.get instance string liblinux.RemoteConnectivityException::get_Fingerprint()
+		}
+		.property instance string HostKeyName()
+		{
+			.get instance string liblinux.RemoteConnectivityException::get_HostKeyName()
 		}
 	}
 	.class public RemoteException
@@ -715,8 +1110,23 @@
 	}
 	.class public RemoteSystem
 		extends liblinux.RemoteSystemBare
-		implements liblinux.IRemoteSystem, liblinux.IRemoteSystemBare, [mscorlib]System.IDisposable
+		implements liblinux.IRemoteSystem, [mscorlib]System.IDisposable, liblinux.Shell.ISimpleShell
 	{
+		.method public virtual hidebysig newslot specialname 
+			instance class liblinux.SystemProperties get_Properties()
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot specialname 
+			instance class liblinux.IConnectionInfo get_TargetConnection()
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot specialname 
+			instance class liblinux.Shell.ISimpleShell get_Shell()
+		{
+			ret
+		}
 		.method public virtual hidebysig newslot specialname 
 			instance class 'liblinux.IO.IRemoteFileSystem' get_FileSystem()
 		{
@@ -787,9 +1197,61 @@
 		{
 			ret
 		}
+		.method public final virtual hidebysig newslot 
+			instance class liblinux.Shell.IShell CreateShell()
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot 
+			instance class liblinux.Shell.IStreamableCommand CreateStreamableCommand(string commandText)
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot 
+			instance class liblinux.Shell.INonHostedCommand CreateCommand(string commandText)
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot 
+			instance void ExecuteCommand(class liblinux.Shell.ICommand command, valuetype [mscorlib]'System.Nullable`1'<valuetype [mscorlib]System.TimeSpan> timeout)
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot 
+			instance void StartCommand(class liblinux.Shell.ICommand command, valuetype [mscorlib]'System.Nullable`1'<valuetype [mscorlib]System.TimeSpan> timeout)
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot 
+			instance class liblinux.Shell.INonHostedCommand ExecuteCommand(string text, int32 timeout)
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot 
+			instance class liblinux.Shell.INonHostedCommand ExecuteCommand(string text, valuetype [mscorlib]'System.Nullable`1'<valuetype [mscorlib]System.TimeSpan> timeout)
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot 
+			instance bool ExecutableExists(string path)
+		{
+			ret
+		}
 		.property instance class 'liblinux.IO.IRemoteFileSystem' FileSystem()
 		{
 			.get instance class 'liblinux.IO.IRemoteFileSystem' liblinux.RemoteSystem::get_FileSystem()
+		}
+		.property instance class liblinux.SystemProperties Properties()
+		{
+			.get instance class liblinux.SystemProperties liblinux.RemoteSystem::get_Properties()
+		}
+		.property instance class liblinux.Shell.ISimpleShell Shell()
+		{
+			.get instance class liblinux.Shell.ISimpleShell liblinux.RemoteSystem::get_Shell()
+		}
+		.property instance class liblinux.IConnectionInfo TargetConnection()
+		{
+			.get instance class liblinux.IConnectionInfo liblinux.RemoteSystem::get_TargetConnection()
 		}
 	}
 	.class public RemoteSystemBare
@@ -898,6 +1360,12 @@
 		.method public virtual hidebysig newslot specialname 
 			instance class liblinux.Shell.ICommandingShell get_Shell()
 		{
+			ret
+		}
+		.method public hidebysig specialname 
+			instance string get_TargetCommandShell()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
 			ret
 		}
 		.method public hidebysig specialname 
@@ -1087,6 +1555,49 @@
 		{
 			.get instance class liblinux.Shell.ICommandingShell liblinux.RemoteSystemBase::get_Shell()
 		}
+		.property instance string TargetCommandShell()
+		{
+			.get instance string liblinux.RemoteSystemBase::get_TargetCommandShell()
+		}
+	}
+	.class public SshRemoteSystemFactory
+		extends [mscorlib]System.Object
+		implements liblinux.IRemoteSystemFactory
+	{
+		.method public static hidebysig 
+			class liblinux.IRemoteSystemFactory Create(class liblinux.ConnectionInfo info)
+		{
+			ret
+		}
+		.method public static hidebysig 
+			class liblinux.IRemoteSystemFactory Create(string connectionName)
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot 
+			instance class liblinux.IRemoteSystem CreateRemoteSystem()
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot 
+			instance class [mscorlib]'System.Threading.Tasks.Task`1'<class liblinux.IRemoteSystem> CreateRemoteSystemAsync(valuetype [mscorlib]System.Threading.CancellationToken token)
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot specialname 
+			instance class liblinux.IConnectionInfo get_ConnectionInfo()
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot 
+			instance class liblinux.Services.RemoteCompiler CreateRemoteCompiler(class liblinux.Services.RemoteCompilerIOImplBase ioImpl)
+		{
+			ret
+		}
+		.property instance class liblinux.IConnectionInfo ConnectionInfo()
+		{
+			.get instance class liblinux.IConnectionInfo liblinux.SshRemoteSystemFactory::get_ConnectionInfo()
+		}
 	}
 	.class public sealed SystemId
 		extends [mscorlib]System.Enum
@@ -1214,6 +1725,9 @@
 			.override [mscorlib]System.Collections.IEnumerable::GetEnumerator
 			ret
 		}
+		.field static public literal string IsWslPropertyName = "IsWsl"
+		.field static public literal string PlatformPropertyName = "Platform"
+		.field static public literal string SystemIdPropertyName = "SystemId"
 		.property instance valuetype liblinux.SystemId BaseId()
 		{
 			.get instance valuetype liblinux.SystemId liblinux.SystemProperties::get_BaseId()
@@ -1252,16 +1766,66 @@
 		.field static public literal valuetype liblinux.SystemPropertyId Platform = int32(0x00000002)
 		.field static public literal valuetype liblinux.SystemPropertyId Version = int32(0x00000003)
 	}
+	.class public TargetShell
+		extends [mscorlib]System.Object
+	{
+		.method public hidebysig specialname 
+			instance string get_PreferredShell()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance void set_PreferredShell(string 'value')
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public static hidebysig 
+			class liblinux.TargetShell GetTargetShell(class liblinux.IRemoteSystem target)
+		{
+			ret
+		}
+		.method public hidebysig 
+			instance string CommandWithStderr(string cmd)
+		{
+			ret
+		}
+		.method public hidebysig 
+			instance string CommandDisowned(string cmd)
+		{
+			ret
+		}
+		.method public hidebysig 
+			instance string CommandInShell(string cmd)
+		{
+			ret
+		}
+		.method public static hidebysig 
+			void SetTargetShell(class liblinux.Shell.IShell shell, class liblinux.IRemoteSystem target)
+		{
+			ret
+		}
+		.property instance string PreferredShell()
+		{
+			.get instance string liblinux.TargetShell::get_PreferredShell()
+			.set instance void liblinux.TargetShell::set_PreferredShell(string)
+		}
+	}
+	.class public abstract sealed TelemetryServiceProvider
+		extends [mscorlib]System.Object
+	{
+		.method public static hidebysig 
+			void SetService(class liblinux.ITelemetryService service)
+		{
+			ret
+		}
+	}
 	.class public UnixSystem
 		extends liblinux.RemoteSystem
 	{
 		.method public hidebysig specialname 
 			instance class liblinux.Services.IServices get_Services()
-		{
-			ret
-		}
-		.method public virtual hidebysig newslot specialname 
-			instance class liblinux.SystemProperties get_Properties()
 		{
 			ret
 		}
@@ -1324,10 +1888,6 @@
 			instance void .ctor(string hostNameOrAddress, int32 port, valuetype [mscorlib]System.TimeSpan timeout, string userName, string privateFileName, class [mscorlib]System.Security.SecureString passphrase)
 		{
 			ret
-		}
-		.property instance class liblinux.SystemProperties Properties()
-		{
-			.get instance class liblinux.SystemProperties liblinux.UnixSystem::get_Properties()
 		}
 		.property instance class liblinux.Services.IServices Services()
 		{
@@ -1565,16 +2125,7 @@
 		}
 	}
 	.class public interface abstract IRemoteFileSystem
-		implements [mscorlib]System.IDisposable, class 'liblinux.IO.Unified.IFileSystem`1'<class 'liblinux.IO.IRemoteDirectory'>
 	{
-		.method public virtual hidebysig newslot abstract specialname 
-			instance bool get_IsConnected()
-		{
-		}
-		.method public virtual hidebysig newslot abstract specialname 
-			instance class liblinux.ConnectionInfo get_ConnectionInfo()
-		{
-		}
 		.method public virtual hidebysig newslot abstract 
 			instance class 'liblinux.IO.IRemoteFile' UploadFile(string localFileName, string remoteFileName)
 		{
@@ -1672,6 +2223,14 @@
 		{
 		}
 		.method public virtual hidebysig newslot abstract 
+			instance string GetFullPath(string remotePath)
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance string GetFileName(string remotePath)
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
 			instance string GetDirectoryName(string remotePath)
 		{
 		}
@@ -1692,15 +2251,15 @@
 		{
 		}
 		.method public virtual hidebysig newslot abstract 
-			instance class 'liblinux.IO.IRemoteDirectory'[] GetDirectories()
-		{
-		}
-		.method public virtual hidebysig newslot abstract 
-			instance class 'liblinux.IO.IRemoteFile'[] GetFiles()
+			instance class 'liblinux.IO.IRemoteDirectory'[] GetDirectories(string remotePath)
 		{
 		}
 		.method public virtual hidebysig newslot abstract 
 			instance class 'liblinux.IO.IRemoteFile' GetFile(string remoteFileName)
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance class 'liblinux.IO.IRemoteDirectory' GetDirectory(string path)
 		{
 		}
 		.method public virtual hidebysig newslot abstract 
@@ -1716,68 +2275,20 @@
 		{
 		}
 		.method public virtual hidebysig newslot abstract 
-			instance void Connect(class liblinux.IRemoteSystemBare remoteSystem)
+			instance valuetype [mscorlib]System.DateTime GetDateModified(string remotePath)
 		{
 		}
 		.method public virtual hidebysig newslot abstract 
-			instance void Connect(class liblinux.ConnectionInfo connectionInfo)
+			instance valuetype [mscorlib]System.DateTime GetDateAccessed(string remotePath)
 		{
 		}
 		.method public virtual hidebysig newslot abstract 
-			instance void Connect(string hostNameOrAddress, string userName, class [mscorlib]System.Security.SecureString password)
+			instance void DeleteDirectory(string remotePath)
 		{
 		}
 		.method public virtual hidebysig newslot abstract 
-			instance void Connect(string hostNameOrAddress, int32 timeout, string userName, class [mscorlib]System.Security.SecureString password)
+			instance void DeleteFile(string remotePath)
 		{
-		}
-		.method public virtual hidebysig newslot abstract 
-			instance void Connect(string hostNameOrAddress, valuetype [mscorlib]System.TimeSpan timeout, string userName, class [mscorlib]System.Security.SecureString password)
-		{
-		}
-		.method public virtual hidebysig newslot abstract 
-			instance void Connect(string hostNameOrAddress, int32 port, int32 timeout, string userName, class [mscorlib]System.Security.SecureString password)
-		{
-		}
-		.method public virtual hidebysig newslot abstract 
-			instance void Connect(string hostNameOrAddress, int32 port, valuetype [mscorlib]System.TimeSpan timeout, string userName, class [mscorlib]System.Security.SecureString password)
-		{
-		}
-		.method public virtual hidebysig newslot abstract 
-			instance void Connect(string hostNameOrAddress, string userName, string privateFileName, class [mscorlib]System.Security.SecureString passphrase)
-		{
-		}
-		.method public virtual hidebysig newslot abstract 
-			instance void Connect(string hostNameOrAddress, int32 timeout, string userName, string privateFileName, class [mscorlib]System.Security.SecureString passphrase)
-		{
-		}
-		.method public virtual hidebysig newslot abstract 
-			instance void Connect(string hostNameOrAddress, valuetype [mscorlib]System.TimeSpan timeout, string userName, string privateFileName, class [mscorlib]System.Security.SecureString passphrase)
-		{
-		}
-		.method public virtual hidebysig newslot abstract 
-			instance void Connect(string hostNameOrAddress, int32 port, int32 timeout, string userName, string privateFileName, class [mscorlib]System.Security.SecureString passphrase)
-		{
-		}
-		.method public virtual hidebysig newslot abstract 
-			instance void Connect(string hostNameOrAddress, int32 port, valuetype [mscorlib]System.TimeSpan timeout, string userName, string privateFileName, class [mscorlib]System.Security.SecureString passphrase)
-		{
-		}
-		.method public virtual hidebysig newslot abstract 
-			instance void Disconnect()
-		{
-		}
-		.method public virtual hidebysig newslot abstract 
-			instance void Close()
-		{
-		}
-		.property instance class liblinux.ConnectionInfo ConnectionInfo()
-		{
-			.get instance class liblinux.ConnectionInfo 'liblinux.IO.IRemoteFileSystem'::get_ConnectionInfo()
-		}
-		.property instance bool IsConnected()
-		{
-			.get instance bool 'liblinux.IO.IRemoteFileSystem'::get_IsConnected()
 		}
 	}
 	.class public interface abstract IRemoteFileSystemInfo
@@ -1835,6 +2346,29 @@
 			.get instance class 'liblinux.IO.FilePermissions' 'liblinux.IO.IRemoteFileSystemInfo'::get_Permissions()
 		}
 	}
+	.class public interface abstract ISharedFileSystem
+	{
+		.method public virtual hidebysig newslot abstract 
+			instance bool IsSameFile(string localPath, string remotePath)
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance bool IsSharedLocalFile(string localPath)
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance bool IsSharedRemoteFile(string remotePath)
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance bool TryGetLocalPath(string remotePath, [out] string& localPath)
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance bool TryGetRemotePath(string localPath, [out] string& remotePath)
+		{
+		}
+	}
 	.class public abstract sealed PathUtils
 		extends [mscorlib]System.Object
 	{
@@ -1856,7 +2390,17 @@
 			ret
 		}
 		.method public static hidebysig 
+			bool IsUnixLikePath(string localOrRemotePath)
+		{
+			ret
+		}
+		.method public static hidebysig 
 			bool IsAbsolutePath(string localOrRemotePath)
+		{
+			ret
+		}
+		.method public static hidebysig 
+			bool IsAbsoluteWindowsPath(string localOrRemotePath)
 		{
 			ret
 		}
@@ -1942,8 +2486,20 @@
 			ret
 		}
 		.method public static hidebysig 
+			string EscapeFilenameForUnixShell(string input)
+		{
+			ret
+		}
+		.method public static hidebysig 
 			string EscapeStringForUnixShell(string input)
 		{
+			ret
+		}
+		.method public static hidebysig 
+			string EscapeStringForUnixShell(string input, char[] additionalUnescapedChars)
+		{
+			.param [2]
+			.custom instance void [mscorlib]System.ParamArrayAttribute::.ctor() = { }
 			ret
 		}
 		.method public static hidebysig 
@@ -1952,17 +2508,27 @@
 			ret
 		}
 		.method public static hidebysig 
-			string GetFullPath(class 'liblinux.Shell.Unified.ICommandHost`2'<class liblinux.Shell.ICommand,class liblinux.Shell.IAsyncCommand> shell, string remotePath)
+			string GetFullPath<(liblinux.Shell.ISimpleShell) 'T'>(!!0 shell, string remotePath)
 		{
 			ret
 		}
 		.method public static hidebysig 
-			string GetFileName(class 'liblinux.Shell.Unified.ICommandHost`2'<class liblinux.Shell.ICommand,class liblinux.Shell.IAsyncCommand> shell, string remotePath)
+			string GetFileName<(liblinux.Shell.ISimpleShell) 'T'>(!!0 shell, string remotePath)
 		{
 			ret
 		}
 		.method public static hidebysig 
 			string[] TranslateWindowsPathToWSLPath(string[] localWindowsPaths)
+		{
+			ret
+		}
+		.method public static hidebysig 
+			string[] TranslateMixedPathToWSLPath(string[] paths)
+		{
+			ret
+		}
+		.method public static hidebysig 
+			string TranslateMixedPathToWSLPath(string path)
 		{
 			ret
 		}
@@ -1993,14 +2559,14 @@
 	}
 	.class public RemoteFileSystem
 		extends [mscorlib]System.Object
-		implements 'liblinux.IO.IRemoteFileSystem', [mscorlib]System.IDisposable, class 'liblinux.IO.Unified.IFileSystem`1'<class 'liblinux.IO.IRemoteDirectory'>
+		implements 'liblinux.IO.IRemoteFileSystem', [mscorlib]System.IDisposable
 	{
-		.method public final virtual hidebysig newslot specialname 
+		.method public hidebysig specialname 
 			instance bool get_IsConnected()
 		{
 			ret
 		}
-		.method public final virtual hidebysig newslot specialname 
+		.method public hidebysig specialname 
 			instance class liblinux.ConnectionInfo get_ConnectionInfo()
 		{
 			ret
@@ -2300,12 +2866,12 @@
 		{
 			ret
 		}
-		.method public final virtual hidebysig newslot 
+		.method public hidebysig 
 			instance class 'liblinux.IO.IRemoteDirectory'[] GetDirectories()
 		{
 			ret
 		}
-		.method public final virtual hidebysig newslot 
+		.method public hidebysig 
 			instance class 'liblinux.IO.IRemoteFile'[] GetFiles()
 		{
 			ret
@@ -2331,7 +2897,27 @@
 			ret
 		}
 		.method public final virtual hidebysig newslot 
+			instance valuetype [mscorlib]System.DateTime GetDateModified(string remotePath)
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot 
+			instance valuetype [mscorlib]System.DateTime GetDateAccessed(string remotePath)
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot 
 			instance int64 GetFileSize(string remoteFileName)
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot 
+			instance void DeleteDirectory(string remotePath)
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot 
+			instance void DeleteFile(string remotePath)
 		{
 			ret
 		}
@@ -2340,12 +2926,12 @@
 		{
 			ret
 		}
-		.method public final virtual hidebysig newslot 
+		.method public hidebysig 
 			instance void Disconnect()
 		{
 			ret
 		}
-		.method public final virtual hidebysig newslot 
+		.method public hidebysig 
 			instance void Close()
 		{
 			ret
@@ -2361,7 +2947,7 @@
 	}
 	.class public abstract RemoteFileSystemBase
 		extends [mscorlib]System.Object
-		implements 'liblinux.IO.IRemoteFileSystem', [mscorlib]System.IDisposable, class 'liblinux.IO.Unified.IFileSystem`1'<class 'liblinux.IO.IRemoteDirectory'>
+		implements 'liblinux.IO.IRemoteFileSystem'
 	{
 		.method public virtual hidebysig newslot abstract specialname 
 			instance bool get_IsConnected()
@@ -2704,7 +3290,83 @@
 {
 	.class public ConnectionInfoStore
 		extends [mscorlib]System.Object
+		implements liblinux.Persistence.IAsyncConnectionInfoStore
 	{
+		.method public static hidebysig specialname 
+			string get_Version()
+		{
+			ret
+		}
+		.method public static hidebysig specialname 
+			string get_MostRecentPreviousVersion()
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot 
+			instance class [mscorlib]'System.Threading.Tasks.Task`1'<string> GetVersionAsync()
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot 
+			instance class [mscorlib]'System.Threading.Tasks.Task`1'<int32> AddConnectionAsync(class liblinux.Remoting.AddConnectionInfo info, class liblinux.Remoting.AuthInfo auth, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot 
+			instance class [mscorlib]'System.Threading.Tasks.Task`1'<int32> AddOldConnectionAsync(int32 id, string version, string fingerPrint, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot 
+			instance class [mscorlib]System.Threading.Tasks.Task SetDefaultConnectionAsync(int32 id, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot 
+			instance class [mscorlib]System.Threading.Tasks.Task UpdateConnectionAsync(int32 id, class liblinux.Remoting.AddConnectionInfo info, class liblinux.Remoting.AuthInfo auth, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot 
+			instance class [mscorlib]System.Threading.Tasks.Task UpdateFingerprintAsync(int32 id, string fingerprint, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot 
+			instance class [mscorlib]System.Threading.Tasks.Task RemoveConnectionAsync(int32 id, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot 
+			instance class [mscorlib]'System.Threading.Tasks.Task`1'<class liblinux.Remoting.ConnectionInfos> GetConnectionInfosAsync(valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot 
+			instance class [mscorlib]'System.Threading.Tasks.Task`1'<valuetype [mscorlib]'System.Nullable`1'<int32>> GetDefaultConnectionAsync(valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot 
+			instance class [mscorlib]System.Threading.Tasks.Task SetPropertyAsync(int32 id, string propertyName, string propertyValue, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot 
+			instance class [mscorlib]'System.Threading.Tasks.Task`1'<string> GetPropertyAsync(int32 id, string propertyName, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot 
+			instance class [mscorlib]'System.Threading.Tasks.Task`1'<class liblinux.Remoting.ConnectionInfo> GetConnectionInfoAsync(int32 id, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+			ret
+		}
+		.method public hidebysig specialname 
+			instance string get_StoreFilePath()
+		{
+			ret
+		}
 		.method public hidebysig specialname 
 			instance class liblinux.Persistence.StoredConnectionInfos get_Connections()
 		{
@@ -2727,6 +3389,21 @@
 		}
 		.method public hidebysig specialname 
 			instance void .ctor(string storeName)
+		{
+			ret
+		}
+		.method public hidebysig specialname 
+			instance void .ctor(bool previous)
+		{
+			ret
+		}
+		.method public hidebysig specialname 
+			instance void .ctor(string store, string version)
+		{
+			ret
+		}
+		.method public hidebysig 
+			instance void SetDefaultConnection(class liblinux.ConnectionInfo connectionInfo)
 		{
 			ret
 		}
@@ -2843,6 +3520,11 @@
 			ret
 		}
 		.method public hidebysig 
+			instance bool TryGetDefault([out] class liblinux.Persistence.StoredConnectionInfo& connectionInfo)
+		{
+			ret
+		}
+		.method public hidebysig 
 			instance bool Contains(class liblinux.ConnectionInfo connectionInfo)
 		{
 			ret
@@ -2887,6 +3569,19 @@
 		{
 			ret
 		}
+		.method public static hidebysig 
+			string GetStoreDirectory(string storeName)
+		{
+			ret
+		}
+		.method public static hidebysig 
+			class liblinux.ConnectionInfo FromRemotingConnectionInfo(class liblinux.Remoting.AddConnectionInfo info, class liblinux.Remoting.AuthInfo auth, [opt] valuetype [mscorlib]'System.Nullable`1'<int32> id)
+		{
+			.param [3] = nullref
+			ret
+		}
+		.field static public literal string 'NAME' = "store.xml"
+		.field static public string[] PreviousVersions
 		.property instance class liblinux.Persistence.StoredConnectionInfos Connections()
 		{
 			.get instance class liblinux.Persistence.StoredConnectionInfos liblinux.Persistence.ConnectionInfoStore::get_Connections()
@@ -2898,6 +3593,18 @@
 		.property instance class liblinux.Persistence.StoredConnectionInfo LastSuccessfulConnection()
 		{
 			.get instance class liblinux.Persistence.StoredConnectionInfo liblinux.Persistence.ConnectionInfoStore::get_LastSuccessfulConnection()
+		}
+		.property string MostRecentPreviousVersion()
+		{
+			.get string liblinux.Persistence.ConnectionInfoStore::get_MostRecentPreviousVersion()
+		}
+		.property instance string StoreFilePath()
+		{
+			.get instance string liblinux.Persistence.ConnectionInfoStore::get_StoreFilePath()
+		}
+		.property string Version()
+		{
+			.get string liblinux.Persistence.ConnectionInfoStore::get_Version()
 		}
 	}
 	.class public ConnectionInfoStoreException
@@ -2997,6 +3704,57 @@
 			.removeon instance void liblinux.Persistence.ConnectionInfoStoreWatcher::remove_Changed(class [mscorlib]System.EventHandler)
 		}
 	}
+	.class public interface abstract IAsyncConnectionInfoStore
+	{
+		.method public virtual hidebysig newslot abstract 
+			instance class [mscorlib]'System.Threading.Tasks.Task`1'<string> GetVersionAsync()
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance class [mscorlib]'System.Threading.Tasks.Task`1'<class liblinux.Remoting.ConnectionInfo> GetConnectionInfoAsync(int32 id, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance class [mscorlib]'System.Threading.Tasks.Task`1'<class liblinux.Remoting.ConnectionInfos> GetConnectionInfosAsync(valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance class [mscorlib]'System.Threading.Tasks.Task`1'<int32> AddConnectionAsync(class liblinux.Remoting.AddConnectionInfo info, class liblinux.Remoting.AuthInfo auth, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance class [mscorlib]'System.Threading.Tasks.Task`1'<int32> AddOldConnectionAsync(int32 id, string version, string fingerPrint, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance class [mscorlib]System.Threading.Tasks.Task SetDefaultConnectionAsync(int32 id, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance class [mscorlib]System.Threading.Tasks.Task UpdateConnectionAsync(int32 id, class liblinux.Remoting.AddConnectionInfo info, class liblinux.Remoting.AuthInfo auth, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance class [mscorlib]System.Threading.Tasks.Task UpdateFingerprintAsync(int32 id, string fingerprint, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance class [mscorlib]System.Threading.Tasks.Task RemoveConnectionAsync(int32 id, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance class [mscorlib]'System.Threading.Tasks.Task`1'<valuetype [mscorlib]'System.Nullable`1'<int32>> GetDefaultConnectionAsync(valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance class [mscorlib]System.Threading.Tasks.Task SetPropertyAsync(int32 id, string propertyName, string propertyValue, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance class [mscorlib]'System.Threading.Tasks.Task`1'<string> GetPropertyAsync(int32 id, string propertyName, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+		}
+	}
 	.class public sealed PersistenceMode
 		extends [mscorlib]System.Enum
 	{
@@ -3013,17 +3771,11 @@
 	}
 	.class public StoredConnectionInfo
 		extends [mscorlib]System.Object
+		implements liblinux.IConnectionInfo
 	{
 		.method public hidebysig specialname 
 			instance int32 get_Id()
 		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method famorassem hidebysig specialname 
-			instance void set_Id(int32 'value')
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
 			ret
 		}
 		.method public hidebysig specialname 
@@ -3104,20 +3856,63 @@
 			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
 			ret
 		}
+		.method public hidebysig specialname 
+			instance class liblinux.ConnectionInfo get_ConnectionInfo()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public final virtual hidebysig newslot specialname 
+			instance string get_Name()
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot specialname 
+			instance string get_UserName()
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot specialname 
+			instance string get_HostName()
+		{
+			ret
+		}
+		.method public hidebysig specialname 
+			instance void .ctor(class liblinux.ConnectionInfo connectionInfo)
+		{
+			ret
+		}
 		.method public static hidebysig specialname 
 			class liblinux.ConnectionInfo op_Implicit(class liblinux.Persistence.StoredConnectionInfo storedInfo)
 		{
 			ret
+		}
+		.method public hidebysig 
+			instance void UpdateConnectionInfo(class liblinux.ConnectionInfo connectionInfo)
+		{
+			ret
+		}
+		.method public virtual hidebysig 
+			instance string ToString()
+		{
+			ret
+		}
+		.property instance class liblinux.ConnectionInfo ConnectionInfo()
+		{
+			.get instance class liblinux.ConnectionInfo liblinux.Persistence.StoredConnectionInfo::get_ConnectionInfo()
 		}
 		.property instance valuetype [mscorlib]System.DateTime DateAdded()
 		{
 			.get instance valuetype [mscorlib]System.DateTime liblinux.Persistence.StoredConnectionInfo::get_DateAdded()
 			.set instance void liblinux.Persistence.StoredConnectionInfo::set_DateAdded(valuetype [mscorlib]System.DateTime)
 		}
+		.property instance string HostName()
+		{
+			.get instance string liblinux.Persistence.StoredConnectionInfo::get_HostName()
+		}
 		.property instance int32 Id()
 		{
 			.get instance int32 liblinux.Persistence.StoredConnectionInfo::get_Id()
-			.set instance void liblinux.Persistence.StoredConnectionInfo::set_Id(int32)
 		}
 		.property instance valuetype [mscorlib]System.DateTime LastFailed()
 		{
@@ -3134,6 +3929,10 @@
 			.get instance valuetype [mscorlib]System.DateTime liblinux.Persistence.StoredConnectionInfo::get_LastUpdated()
 			.set instance void liblinux.Persistence.StoredConnectionInfo::set_LastUpdated(valuetype [mscorlib]System.DateTime)
 		}
+		.property instance string Name()
+		{
+			.get instance string liblinux.Persistence.StoredConnectionInfo::get_Name()
+		}
 		.property instance valuetype liblinux.Persistence.PersistenceMode PersistenceMode()
 		{
 			.get instance valuetype liblinux.Persistence.PersistenceMode liblinux.Persistence.StoredConnectionInfo::get_PersistenceMode()
@@ -3147,6 +3946,10 @@
 		{
 			.get instance object liblinux.Persistence.StoredConnectionInfo::get_Tag()
 			.set instance void liblinux.Persistence.StoredConnectionInfo::set_Tag(object)
+		}
+		.property instance string UserName()
+		{
+			.get instance string liblinux.Persistence.StoredConnectionInfo::get_UserName()
 		}
 	}
 	.class public StoredConnectionInfos
@@ -3198,24 +4001,389 @@
 	{
 		.field public rtspecialname specialname int32 value__
 		.field static public literal valuetype liblinux.Persistence.UpdateMode Credentials = int32(0x00000002)
+		.field static public literal valuetype liblinux.Persistence.UpdateMode DefaultOnly = int32(0x00000004)
 		.field static public literal valuetype liblinux.Persistence.UpdateMode NoPassword = int32(0x00000001)
 		.field static public literal valuetype liblinux.Persistence.UpdateMode None = int32(0x00000000)
 		.field static public literal valuetype liblinux.Persistence.UpdateMode PropertiesOnly = int32(0x00000003)
 	}
 }
-.namespace liblinux.Services
+.namespace liblinux.Remoting
 {
-	.class public sealed CompilerId
+	.class public AddConnectionInfo
+		extends [mscorlib]System.Object
+	{
+		.method public hidebysig specialname 
+			instance string get_Host()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance int32 get_Port()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance string get_User()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance valuetype [mscorlib]System.TimeSpan get_Timeout()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance class [mscorlib]'System.Collections.Generic.Dictionary`2'<string,string> get_Properties()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance string get_Fingerprint()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance void set_Fingerprint(string 'value')
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance void .ctor(string host, int32 port, string user, valuetype [mscorlib]System.TimeSpan timeout, class [mscorlib]'System.Collections.Generic.Dictionary`2'<string,string> properties, [opt] string fingerPrint)
+		{
+			.param [6] = nullref
+			ret
+		}
+		.property instance string Fingerprint()
+		{
+			.get instance string liblinux.Remoting.AddConnectionInfo::get_Fingerprint()
+			.set instance void liblinux.Remoting.AddConnectionInfo::set_Fingerprint(string)
+		}
+		.property instance string Host()
+		{
+			.get instance string liblinux.Remoting.AddConnectionInfo::get_Host()
+		}
+		.property instance int32 Port()
+		{
+			.get instance int32 liblinux.Remoting.AddConnectionInfo::get_Port()
+		}
+		.property instance class [mscorlib]'System.Collections.Generic.Dictionary`2'<string,string> Properties()
+		{
+			.get instance class [mscorlib]'System.Collections.Generic.Dictionary`2'<string,string> liblinux.Remoting.AddConnectionInfo::get_Properties()
+		}
+		.property instance valuetype [mscorlib]System.TimeSpan Timeout()
+		{
+			.get instance valuetype [mscorlib]System.TimeSpan liblinux.Remoting.AddConnectionInfo::get_Timeout()
+		}
+		.property instance string User()
+		{
+			.get instance string liblinux.Remoting.AddConnectionInfo::get_User()
+		}
+	}
+	.class public abstract AuthInfo
+		extends [mscorlib]System.Object
+	{
+		.method family hidebysig specialname 
+			instance void .ctor()
+		{
+			ret
+		}
+	}
+	.class public ConnectionAttemptResult
+		extends [mscorlib]System.Object
+	{
+		.method public hidebysig specialname 
+			instance valuetype [mscorlib]'System.Nullable`1'<valuetype liblinux.Remoting.ConnectionFailureReason> get_Reason()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance valuetype liblinux.SystemId get_SystemId()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance valuetype liblinux.SystemPlatform get_SystemPlatform()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance bool get_IsWsl()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance string get_ExceptionMessage()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance string get_Fingerprint()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance string get_HostKeyName()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance void .ctor(valuetype [mscorlib]'System.Nullable`1'<valuetype liblinux.Remoting.ConnectionFailureReason> reason, valuetype liblinux.SystemId systemId, valuetype liblinux.SystemPlatform systemPlatform, bool isWsl, [opt] string exceptionMessage, [opt] string fingerprint, [opt] string hostKeyName)
+		{
+			.param [5] = nullref
+			.param [6] = nullref
+			.param [7] = nullref
+			ret
+		}
+		.property instance string ExceptionMessage()
+		{
+			.get instance string liblinux.Remoting.ConnectionAttemptResult::get_ExceptionMessage()
+		}
+		.property instance string Fingerprint()
+		{
+			.get instance string liblinux.Remoting.ConnectionAttemptResult::get_Fingerprint()
+		}
+		.property instance string HostKeyName()
+		{
+			.get instance string liblinux.Remoting.ConnectionAttemptResult::get_HostKeyName()
+		}
+		.property instance bool IsWsl()
+		{
+			.get instance bool liblinux.Remoting.ConnectionAttemptResult::get_IsWsl()
+		}
+		.property instance valuetype [mscorlib]'System.Nullable`1'<valuetype liblinux.Remoting.ConnectionFailureReason> Reason()
+		{
+			.get instance valuetype [mscorlib]'System.Nullable`1'<valuetype liblinux.Remoting.ConnectionFailureReason> liblinux.Remoting.ConnectionAttemptResult::get_Reason()
+		}
+		.property instance valuetype liblinux.SystemId SystemId()
+		{
+			.get instance valuetype liblinux.SystemId liblinux.Remoting.ConnectionAttemptResult::get_SystemId()
+		}
+		.property instance valuetype liblinux.SystemPlatform SystemPlatform()
+		{
+			.get instance valuetype liblinux.SystemPlatform liblinux.Remoting.ConnectionAttemptResult::get_SystemPlatform()
+		}
+	}
+	.class public sealed ConnectionFailureReason
 		extends [mscorlib]System.Enum
 	{
 		.field public rtspecialname specialname int32 value__
-		.field static public literal valuetype liblinux.Services.CompilerId Clang = int32(0x00000001)
-		.field static public literal valuetype liblinux.Services.CompilerId Gcc = int32(0x00000000)
+		.field static public literal valuetype liblinux.Remoting.ConnectionFailureReason AuthenticationFailure = int32(0x00000002)
+		.field static public literal valuetype liblinux.Remoting.ConnectionFailureReason Canceled = int32(0x00000001)
+		.field static public literal valuetype liblinux.Remoting.ConnectionFailureReason ConnectivityFailure = int32(0x00000003)
+		.field static public literal valuetype liblinux.Remoting.ConnectionFailureReason Unknown = int32(0x00000000)
 	}
+	.class public ConnectionInfo
+		extends [mscorlib]System.Object
+	{
+		.method public hidebysig specialname 
+			instance int32 get_Id()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance string get_Host()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance int32 get_Port()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance string get_User()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance valuetype [mscorlib]System.TimeSpan get_Timeout()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance valuetype liblinux.AuthenticationMode get_AuthenticationMode()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance class [mscorlib]'System.Collections.Generic.Dictionary`2'<string,string> get_Properties()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance string get_Fingerprint()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance void set_Fingerprint(string 'value')
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance void .ctor(int32 id, string host, int32 port, string user, valuetype [mscorlib]System.TimeSpan timeout, valuetype liblinux.AuthenticationMode authenticationMode, class [mscorlib]'System.Collections.Generic.Dictionary`2'<string,string> properties, [opt] string fingerPrint)
+		{
+			.param [8] = nullref
+			ret
+		}
+		.method public virtual hidebysig 
+			instance string ToString()
+		{
+			ret
+		}
+		.property instance valuetype liblinux.AuthenticationMode AuthenticationMode()
+		{
+			.get instance valuetype liblinux.AuthenticationMode liblinux.Remoting.ConnectionInfo::get_AuthenticationMode()
+		}
+		.property instance string Fingerprint()
+		{
+			.get instance string liblinux.Remoting.ConnectionInfo::get_Fingerprint()
+			.set instance void liblinux.Remoting.ConnectionInfo::set_Fingerprint(string)
+		}
+		.property instance string Host()
+		{
+			.get instance string liblinux.Remoting.ConnectionInfo::get_Host()
+		}
+		.property instance int32 Id()
+		{
+			.get instance int32 liblinux.Remoting.ConnectionInfo::get_Id()
+		}
+		.property instance int32 Port()
+		{
+			.get instance int32 liblinux.Remoting.ConnectionInfo::get_Port()
+		}
+		.property instance class [mscorlib]'System.Collections.Generic.Dictionary`2'<string,string> Properties()
+		{
+			.get instance class [mscorlib]'System.Collections.Generic.Dictionary`2'<string,string> liblinux.Remoting.ConnectionInfo::get_Properties()
+		}
+		.property instance valuetype [mscorlib]System.TimeSpan Timeout()
+		{
+			.get instance valuetype [mscorlib]System.TimeSpan liblinux.Remoting.ConnectionInfo::get_Timeout()
+		}
+		.property instance string User()
+		{
+			.get instance string liblinux.Remoting.ConnectionInfo::get_User()
+		}
+	}
+	.class public ConnectionInfos
+		extends [mscorlib]System.Object
+	{
+		.method public hidebysig specialname 
+			instance valuetype [mscorlib]'System.Nullable`1'<int32> get_DefaultConnectionId()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance class [mscorlib]'System.Collections.Generic.Dictionary`2'<int32,class liblinux.Remoting.ConnectionInfo> get_Connections()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance void .ctor(valuetype [mscorlib]'System.Nullable`1'<int32> defaultConnectionId, class [mscorlib]'System.Collections.Generic.Dictionary`2'<int32,class liblinux.Remoting.ConnectionInfo> connections)
+		{
+			ret
+		}
+		.property instance class [mscorlib]'System.Collections.Generic.Dictionary`2'<int32,class liblinux.Remoting.ConnectionInfo> Connections()
+		{
+			.get instance class [mscorlib]'System.Collections.Generic.Dictionary`2'<int32,class liblinux.Remoting.ConnectionInfo> liblinux.Remoting.ConnectionInfos::get_Connections()
+		}
+		.property instance valuetype [mscorlib]'System.Nullable`1'<int32> DefaultConnectionId()
+		{
+			.get instance valuetype [mscorlib]'System.Nullable`1'<int32> liblinux.Remoting.ConnectionInfos::get_DefaultConnectionId()
+		}
+	}
+	.class public PasswordAuthInfo
+		extends liblinux.Remoting.AuthInfo
+	{
+		.method public hidebysig specialname 
+			instance string get_Password()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance void .ctor(string password)
+		{
+			ret
+		}
+		.property instance string Password()
+		{
+			.get instance string liblinux.Remoting.PasswordAuthInfo::get_Password()
+		}
+	}
+	.class public PrivateKeyAuthInfo
+		extends liblinux.Remoting.AuthInfo
+	{
+		.method public hidebysig specialname 
+			instance string get_Filename()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance string get_Passphrase()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance void .ctor(string filename, string passphrase)
+		{
+			ret
+		}
+		.property instance string Filename()
+		{
+			.get instance string liblinux.Remoting.PrivateKeyAuthInfo::get_Filename()
+		}
+		.property instance string Passphrase()
+		{
+			.get instance string liblinux.Remoting.PrivateKeyAuthInfo::get_Passphrase()
+		}
+	}
+}
+.namespace liblinux.Services
+{
 	.class public GdbServer
 		extends [mscorlib]System.Object
 		implements [mscorlib]System.IDisposable
 	{
+		.method public hidebysig specialname 
+			instance void add_TunnelExceptionThrown(class [mscorlib]'System.EventHandler`1'<class liblinux.ExceptionEventArgs> 'value')
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance void remove_TunnelExceptionThrown(class [mscorlib]'System.EventHandler`1'<class liblinux.ExceptionEventArgs> 'value')
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
 		.method public hidebysig specialname 
 			instance int32 get_DebugeePid()
 		{
@@ -3240,6 +4408,11 @@
 			instance void Stop()
 		{
 			ret
+		}
+		.event class [mscorlib]'System.EventHandler`1'<class liblinux.ExceptionEventArgs> TunnelExceptionThrown
+		{
+			.addon instance void liblinux.Services.GdbServer::add_TunnelExceptionThrown(class [mscorlib]'System.EventHandler`1'<class liblinux.ExceptionEventArgs>)
+			.removeon instance void liblinux.Services.GdbServer::remove_TunnelExceptionThrown(class [mscorlib]'System.EventHandler`1'<class liblinux.ExceptionEventArgs>)
 		}
 		.property instance int32 DebugeePid()
 		{
@@ -3414,6 +4587,16 @@
 			ret
 		}
 		.method public hidebysig specialname 
+			instance string get_GdbserverPath()
+		{
+			ret
+		}
+		.method public hidebysig specialname 
+			instance void set_GdbserverPath(string 'value')
+		{
+			ret
+		}
+		.method public hidebysig specialname 
 			instance void .ctor()
 		{
 			ret
@@ -3422,6 +4605,11 @@
 		{
 			.get instance string[] liblinux.Services.GdbServerStartInfo::get_Arguments()
 			.set instance void liblinux.Services.GdbServerStartInfo::set_Arguments(string[])
+		}
+		.property instance string GdbserverPath()
+		{
+			.get instance string liblinux.Services.GdbServerStartInfo::get_GdbserverPath()
+			.set instance void liblinux.Services.GdbServerStartInfo::set_GdbserverPath(string)
 		}
 		.property instance int32 LocalPort()
 		{
@@ -3469,6 +4657,38 @@
 		extends [mscorlib]System.Object
 		implements [mscorlib]System.IDisposable
 	{
+		.custom instance void [mscorlib]System.CLSCompliantAttribute::.ctor(bool) = { bool(false) }
+		.class nested public sealed SysRootDownloadType
+			extends [mscorlib]System.Enum
+		{
+			.field public rtspecialname specialname int32 value__
+			.field static public literal valuetype liblinux.Services.RemoteCompiler/SysRootDownloadType Rescan = int32(0x00000000)
+			.field static public literal valuetype liblinux.Services.RemoteCompiler/SysRootDownloadType Update = int32(0x00000001)
+		}
+		.method public hidebysig specialname 
+			instance void add_SysRootDownloadBegin(class [mscorlib]'System.EventHandler`1'<valuetype liblinux.Services.RemoteCompiler/SysRootDownloadType> 'value')
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance void remove_SysRootDownloadBegin(class [mscorlib]'System.EventHandler`1'<valuetype liblinux.Services.RemoteCompiler/SysRootDownloadType> 'value')
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance void add_SysRootDownloadComplete(class [mscorlib]'System.EventHandler`1'<valuetype liblinux.Services.RemoteCompiler/SysRootDownloadType> 'value')
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public hidebysig specialname 
+			instance void remove_SysRootDownloadComplete(class [mscorlib]'System.EventHandler`1'<valuetype liblinux.Services.RemoteCompiler/SysRootDownloadType> 'value')
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
 		.method public hidebysig specialname 
 			instance void add_DownloadProgress(class [mscorlib]'System.EventHandler`1'<class liblinux.Services.RemoteCompilerDownloadProgressEventArgs> 'value')
 		{
@@ -3506,18 +4726,6 @@
 			ret
 		}
 		.method public hidebysig specialname 
-			instance class [mscorlib]System.Version get_Version()
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method public hidebysig specialname 
-			instance valuetype liblinux.Services.CompilerId get_CompilerId()
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method public hidebysig specialname 
 			instance string get_Archiver()
 		{
 			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
@@ -3525,18 +4733,6 @@
 		}
 		.method public hidebysig specialname 
 			instance void set_Archiver(string 'value')
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method public hidebysig specialname 
-			instance class [System.Core]'System.Collections.Generic.HashSet`1'<string> get_AdditionalIncludes()
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method public hidebysig specialname 
-			instance class [System.Core]'System.Collections.Generic.HashSet`1'<string> get_ExcludedDirectories()
 		{
 			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
 			ret
@@ -3566,19 +4762,13 @@
 			ret
 		}
 		.method public hidebysig specialname 
-			instance class [mscorlib]'System.Collections.Generic.List`1'<string> get_IncludeDirectories()
+			instance class [System.Core]'System.Collections.Generic.HashSet`1'<string> get_IncludeDirectories()
 		{
 			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
 			ret
 		}
 		.method public hidebysig specialname 
-			instance bool get_UseCompiler()
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void set_UseCompiler(bool 'value')
+			instance class [System.Core]'System.Collections.Generic.HashSet`1'<string> get_ExcludedDirectories()
 		{
 			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
 			ret
@@ -3591,18 +4781,6 @@
 		}
 		.method public hidebysig specialname 
 			instance void set_TemporaryArchiveFileName(string 'value')
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method public hidebysig specialname 
-			instance valuetype liblinux.SystemPlatform get_Platform()
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method family hidebysig specialname 
-			instance void set_Platform(valuetype liblinux.SystemPlatform 'value')
 		{
 			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
 			ret
@@ -3621,54 +4799,6 @@
 		}
 		.method public hidebysig specialname 
 			instance void set_LocalDestinationDirectory(string 'value')
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method public hidebysig specialname 
-			instance string get_CCompilerIncludeDirectoriesQueryCommandFormat()
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void set_CCompilerIncludeDirectoriesQueryCommandFormat(string 'value')
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method public hidebysig specialname 
-			instance string get_CppCompilerIncludeDirectoriesQueryCommandFormat()
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void set_CppCompilerIncludeDirectoriesQueryCommandFormat(string 'value')
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method public hidebysig specialname 
-			instance string get_CCompilerIncludePreprocessorDefinitionsQueryCommandFormat()
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void set_CCompilerIncludePreprocessorDefinitionsQueryCommandFormat(string 'value')
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method public hidebysig specialname 
-			instance string get_CppCompilerPreprocessorDefinitionsQueryCommandFormat()
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void set_CppCompilerPreprocessorDefinitionsQueryCommandFormat(string 'value')
 		{
 			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
 			ret
@@ -3697,18 +4827,6 @@
 			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
 			ret
 		}
-		.method public hidebysig specialname 
-			instance int32 get_LongestPathLength()
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method famorassem hidebysig specialname 
-			instance void set_LongestPathLength(int32 'value')
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
 		.method public virtual hidebysig newslot abstract specialname 
 			instance bool get_HasLocalSysroot()
 		{
@@ -3722,13 +4840,13 @@
 		{
 		}
 		.method public hidebysig specialname 
-			instance int32 get_UpdateIntervalMinutes()
+			instance valuetype [mscorlib]System.TimeSpan get_DirectorySyncInterval()
 		{
 			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
 			ret
 		}
 		.method public hidebysig specialname 
-			instance void set_UpdateIntervalMinutes(int32 'value')
+			instance void set_DirectorySyncInterval(valuetype [mscorlib]System.TimeSpan 'value')
 		{
 			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
 			ret
@@ -3738,8 +4856,14 @@
 		{
 			ret
 		}
-		.method public hidebysig specialname 
+		.method family hidebysig specialname 
 			instance string get_SyncMethod()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method family hidebysig specialname 
+			instance void set_SyncMethod(string 'value')
 		{
 			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
 			ret
@@ -3755,22 +4879,29 @@
 			ret
 		}
 		.method public hidebysig specialname 
-			instance class liblinux.Services.RemoteCompilerDetail get_DefaultCompilerInfo()
+			instance class liblinux.IRemoteSystem get_RemoteSystem()
 		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
 			ret
 		}
-		.method public hidebysig specialname 
-			instance class liblinux.Services.RemoteCompilerDetail get_DefaultClangCompilerInfo()
+		.method family hidebysig specialname 
+			instance void set_RemoteSystem(class liblinux.IRemoteSystem 'value')
 		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
 			ret
 		}
 		.method public virtual hidebysig newslot abstract specialname 
-			instance class 'liblinux.IO.Unified.IFileSystem`1'<class 'liblinux.IO.Unified.IDirectory'> get_FileSystem()
+			instance class 'liblinux.IO.IRemoteFileSystem' get_FileSystem()
 		{
 		}
 		.method public virtual hidebysig newslot abstract specialname 
-			instance class 'liblinux.Shell.Unified.ICommandHost`2'<class liblinux.Shell.ICommand,class liblinux.Shell.IAsyncCommand> get_Shell()
+			instance class liblinux.TargetShell get_TargetShell()
 		{
+		}
+		.method family virtual hidebysig newslot 
+			instance void AddSettingsToWrite(class [System.Xml.Linq]System.Xml.Linq.XElement element)
+		{
+			ret
 		}
 		.method public final virtual hidebysig newslot 
 			instance void Dispose()
@@ -3806,26 +4937,34 @@
 			instance string GetDefaultLocalDestinationDirectory()
 		{
 		}
+		.method public virtual hidebysig newslot abstract specialname 
+			instance class liblinux.IConnectionInfo get_RemoteHostIdentifier()
+		{
+		}
 		.method public virtual hidebysig newslot 
 			instance void Cancel()
 		{
 			ret
 		}
 		.method public hidebysig 
-			instance class [mscorlib]'System.Threading.Tasks.Task`1'<bool> CreateLocalSysrootAsync([opt] bool throwIfNoCompilerFound)
+			instance class ['Microsoft.VisualStudio.VC.CompilerQuery']'Microsoft.VisualStudio.VC.CompilerQuery.CompilerDetailsSet' GetCompilerDetails(class ['Microsoft.VisualStudio.VC.CompilerQuery']'Microsoft.VisualStudio.VC.CompilerQuery.CompilerSet' compilers)
 		{
-			.param [1] = bool(false)
+			ret
+		}
+		.method public hidebysig 
+			instance class [mscorlib]'System.Threading.Tasks.Task`1'<bool> UpdateSysrootForProjectAsync(class ['Microsoft.VisualStudio.VC.CompilerQuery']'Microsoft.VisualStudio.VC.CompilerQuery.CompilerSet' compilers, class [mscorlib]'System.Collections.Generic.IEnumerable`1'<string> includes, class [mscorlib]'System.Collections.Generic.IEnumerable`1'<string> excludes, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken, [opt] bool throwIfNoCompilerFound)
+		{
+			.param [5] = bool(false)
+			ret
+		}
+		.method public hidebysig 
+			instance class [mscorlib]'System.Threading.Tasks.Task`1'<bool> UpdateSysrootForAllCompilersAsync(valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
 			ret
 		}
 		.method public virtual hidebysig newslot 
 			instance void PurgeLocalSysroot()
 		{
-			ret
-		}
-		.method public hidebysig 
-			instance void RetrieveCompilerInformation([opt] bool throwIfNoCompilerFound)
-		{
-			.param [1] = bool(false)
 			ret
 		}
 		.method public static hidebysig 
@@ -3834,13 +4973,9 @@
 			ret
 		}
 		.method family virtual hidebysig newslot 
-			instance class [mscorlib]System.Threading.Tasks.Task DownloadSysrootAsync()
-		{
-			ret
-		}
-		.method family virtual hidebysig newslot abstract 
 			instance void Initialize()
 		{
+			ret
 		}
 		.method famorassem hidebysig 
 			instance void OnProgress(string message, string source)
@@ -3859,18 +4994,13 @@
 		{
 			ret
 		}
-		.method famorassem hidebysig 
-			instance void ExpandRemotePaths(class [System.Core]'System.Collections.Generic.HashSet`1'<string> paths)
-		{
-			ret
-		}
-		.method family virtual hidebysig newslot 
-			instance void AddSettingsToWrite(class [System.Xml.Linq]System.Xml.Linq.XElement element)
-		{
-			ret
-		}
 		.method public hidebysig 
-			instance void LoadPreprocessorDefinitions()
+			instance class [mscorlib]'System.Collections.Generic.IEnumerable`1'<string> LocalIncludes(class [mscorlib]'System.Collections.Generic.IEnumerable`1'<string> remote)
+		{
+			ret
+		}
+		.method famorassem hidebysig 
+			instance void ExpandRemotePaths(class [mscorlib]'System.Collections.Generic.IEnumerable`1'<string> paths, class [System.Core]'System.Collections.Generic.HashSet`1'<string> expandedPaths)
 		{
 			ret
 		}
@@ -3882,6 +5012,11 @@
 		.method family virtual hidebysig newslot abstract 
 			instance void PersistSysrootInfo()
 		{
+		}
+		.method family virtual hidebysig newslot 
+			instance void OnBeforeRemoteCommunication()
+		{
+			ret
 		}
 		.method family hidebysig specialname 
 			instance void .ctor()
@@ -3906,9 +5041,15 @@
 			.addon instance void liblinux.Services.RemoteCompiler::add_RsyncCleanupNeeded(class [mscorlib]System.EventHandler)
 			.removeon instance void liblinux.Services.RemoteCompiler::remove_RsyncCleanupNeeded(class [mscorlib]System.EventHandler)
 		}
-		.property instance class [System.Core]'System.Collections.Generic.HashSet`1'<string> AdditionalIncludes()
+		.event class [mscorlib]'System.EventHandler`1'<valuetype liblinux.Services.RemoteCompiler/SysRootDownloadType> SysRootDownloadBegin
 		{
-			.get instance class [System.Core]'System.Collections.Generic.HashSet`1'<string> liblinux.Services.RemoteCompiler::get_AdditionalIncludes()
+			.addon instance void liblinux.Services.RemoteCompiler::add_SysRootDownloadBegin(class [mscorlib]'System.EventHandler`1'<valuetype liblinux.Services.RemoteCompiler/SysRootDownloadType>)
+			.removeon instance void liblinux.Services.RemoteCompiler::remove_SysRootDownloadBegin(class [mscorlib]'System.EventHandler`1'<valuetype liblinux.Services.RemoteCompiler/SysRootDownloadType>)
+		}
+		.event class [mscorlib]'System.EventHandler`1'<valuetype liblinux.Services.RemoteCompiler/SysRootDownloadType> SysRootDownloadComplete
+		{
+			.addon instance void liblinux.Services.RemoteCompiler::add_SysRootDownloadComplete(class [mscorlib]'System.EventHandler`1'<valuetype liblinux.Services.RemoteCompiler/SysRootDownloadType>)
+			.removeon instance void liblinux.Services.RemoteCompiler::remove_SysRootDownloadComplete(class [mscorlib]'System.EventHandler`1'<valuetype liblinux.Services.RemoteCompiler/SysRootDownloadType>)
 		}
 		.property instance string Archiver()
 		{
@@ -3920,41 +5061,14 @@
 			.get instance string liblinux.Services.RemoteCompiler::get_ArchiverArchiveCommandFormat()
 			.set instance void liblinux.Services.RemoteCompiler::set_ArchiverArchiveCommandFormat(string)
 		}
-		.property instance string CCompilerIncludeDirectoriesQueryCommandFormat()
-		{
-			.get instance string liblinux.Services.RemoteCompiler::get_CCompilerIncludeDirectoriesQueryCommandFormat()
-			.set instance void liblinux.Services.RemoteCompiler::set_CCompilerIncludeDirectoriesQueryCommandFormat(string)
-		}
-		.property instance string CCompilerIncludePreprocessorDefinitionsQueryCommandFormat()
-		{
-			.get instance string liblinux.Services.RemoteCompiler::get_CCompilerIncludePreprocessorDefinitionsQueryCommandFormat()
-			.set instance void liblinux.Services.RemoteCompiler::set_CCompilerIncludePreprocessorDefinitionsQueryCommandFormat(string)
-		}
 		.property instance bool Cancelled()
 		{
 			.get instance bool liblinux.Services.RemoteCompiler::get_Cancelled()
 		}
-		.property instance valuetype liblinux.Services.CompilerId CompilerId()
+		.property instance valuetype [mscorlib]System.TimeSpan DirectorySyncInterval()
 		{
-			.get instance valuetype liblinux.Services.CompilerId liblinux.Services.RemoteCompiler::get_CompilerId()
-		}
-		.property instance string CppCompilerIncludeDirectoriesQueryCommandFormat()
-		{
-			.get instance string liblinux.Services.RemoteCompiler::get_CppCompilerIncludeDirectoriesQueryCommandFormat()
-			.set instance void liblinux.Services.RemoteCompiler::set_CppCompilerIncludeDirectoriesQueryCommandFormat(string)
-		}
-		.property instance string CppCompilerPreprocessorDefinitionsQueryCommandFormat()
-		{
-			.get instance string liblinux.Services.RemoteCompiler::get_CppCompilerPreprocessorDefinitionsQueryCommandFormat()
-			.set instance void liblinux.Services.RemoteCompiler::set_CppCompilerPreprocessorDefinitionsQueryCommandFormat(string)
-		}
-		.property instance class liblinux.Services.RemoteCompilerDetail DefaultClangCompilerInfo()
-		{
-			.get instance class liblinux.Services.RemoteCompilerDetail liblinux.Services.RemoteCompiler::get_DefaultClangCompilerInfo()
-		}
-		.property instance class liblinux.Services.RemoteCompilerDetail DefaultCompilerInfo()
-		{
-			.get instance class liblinux.Services.RemoteCompilerDetail liblinux.Services.RemoteCompiler::get_DefaultCompilerInfo()
+			.get instance valuetype [mscorlib]System.TimeSpan liblinux.Services.RemoteCompiler::get_DirectorySyncInterval()
+			.set instance void liblinux.Services.RemoteCompiler::set_DirectorySyncInterval(valuetype [mscorlib]System.TimeSpan)
 		}
 		.property instance valuetype [mscorlib]System.TimeSpan DownloadDuration()
 		{
@@ -3969,9 +5083,9 @@
 		{
 			.get instance class [System.Core]'System.Collections.Generic.HashSet`1'<string> liblinux.Services.RemoteCompiler::get_ExcludedDirectories()
 		}
-		.property instance class 'liblinux.IO.Unified.IFileSystem`1'<class 'liblinux.IO.Unified.IDirectory'> FileSystem()
+		.property instance class 'liblinux.IO.IRemoteFileSystem' FileSystem()
 		{
-			.get instance class 'liblinux.IO.Unified.IFileSystem`1'<class 'liblinux.IO.Unified.IDirectory'> liblinux.Services.RemoteCompiler::get_FileSystem()
+			.get instance class 'liblinux.IO.IRemoteFileSystem' liblinux.Services.RemoteCompiler::get_FileSystem()
 		}
 		.property instance bool ForceUpdate()
 		{
@@ -3982,9 +5096,9 @@
 		{
 			.get instance bool liblinux.Services.RemoteCompiler::get_HasLocalSysroot()
 		}
-		.property instance class [mscorlib]'System.Collections.Generic.List`1'<string> IncludeDirectories()
+		.property instance class [System.Core]'System.Collections.Generic.HashSet`1'<string> IncludeDirectories()
 		{
-			.get instance class [mscorlib]'System.Collections.Generic.List`1'<string> liblinux.Services.RemoteCompiler::get_IncludeDirectories()
+			.get instance class [System.Core]'System.Collections.Generic.HashSet`1'<string> liblinux.Services.RemoteCompiler::get_IncludeDirectories()
 		}
 		.property instance valuetype [mscorlib]System.DateTime LastSysrootUpdate()
 		{
@@ -3999,220 +5113,38 @@
 		{
 			.get instance bool liblinux.Services.RemoteCompiler::get_LocalSysrootEnabled()
 		}
-		.property instance int32 LongestPathLength()
-		{
-			.get instance int32 liblinux.Services.RemoteCompiler::get_LongestPathLength()
-			.set instance void liblinux.Services.RemoteCompiler::set_LongestPathLength(int32)
-		}
-		.property instance valuetype liblinux.SystemPlatform Platform()
-		{
-			.get instance valuetype liblinux.SystemPlatform liblinux.Services.RemoteCompiler::get_Platform()
-			.set instance void liblinux.Services.RemoteCompiler::set_Platform(valuetype liblinux.SystemPlatform)
-		}
 		.property instance class liblinux.Services.RemoteCompilerIOImplBase RemoteCompilerIO()
 		{
 			.get instance class liblinux.Services.RemoteCompilerIOImplBase liblinux.Services.RemoteCompiler::get_RemoteCompilerIO()
 			.set instance void liblinux.Services.RemoteCompiler::set_RemoteCompilerIO(class liblinux.Services.RemoteCompilerIOImplBase)
 		}
-		.property instance class 'liblinux.Shell.Unified.ICommandHost`2'<class liblinux.Shell.ICommand,class liblinux.Shell.IAsyncCommand> Shell()
+		.property instance class liblinux.IConnectionInfo RemoteHostIdentifier()
 		{
-			.get instance class 'liblinux.Shell.Unified.ICommandHost`2'<class liblinux.Shell.ICommand,class liblinux.Shell.IAsyncCommand> liblinux.Services.RemoteCompiler::get_Shell()
+			.get instance class liblinux.IConnectionInfo liblinux.Services.RemoteCompiler::get_RemoteHostIdentifier()
+		}
+		.property instance class liblinux.IRemoteSystem RemoteSystem()
+		{
+			.get instance class liblinux.IRemoteSystem liblinux.Services.RemoteCompiler::get_RemoteSystem()
+			.set instance void liblinux.Services.RemoteCompiler::set_RemoteSystem(class liblinux.IRemoteSystem)
 		}
 		.property instance string SyncMethod()
 		{
 			.get instance string liblinux.Services.RemoteCompiler::get_SyncMethod()
+			.set instance void liblinux.Services.RemoteCompiler::set_SyncMethod(string)
+		}
+		.property instance class liblinux.TargetShell TargetShell()
+		{
+			.get instance class liblinux.TargetShell liblinux.Services.RemoteCompiler::get_TargetShell()
 		}
 		.property instance string TemporaryArchiveFileName()
 		{
 			.get instance string liblinux.Services.RemoteCompiler::get_TemporaryArchiveFileName()
 			.set instance void liblinux.Services.RemoteCompiler::set_TemporaryArchiveFileName(string)
 		}
-		.property instance int32 UpdateIntervalMinutes()
-		{
-			.get instance int32 liblinux.Services.RemoteCompiler::get_UpdateIntervalMinutes()
-			.set instance void liblinux.Services.RemoteCompiler::set_UpdateIntervalMinutes(int32)
-		}
-		.property instance bool UseCompiler()
-		{
-			.get instance bool liblinux.Services.RemoteCompiler::get_UseCompiler()
-			.set instance void liblinux.Services.RemoteCompiler::set_UseCompiler(bool)
-		}
 		.property instance string VCPkgLocationQueryCommandFormat()
 		{
 			.get instance string liblinux.Services.RemoteCompiler::get_VCPkgLocationQueryCommandFormat()
 			.set instance void liblinux.Services.RemoteCompiler::set_VCPkgLocationQueryCommandFormat(string)
-		}
-		.property instance class [mscorlib]System.Version Version()
-		{
-			.get instance class [mscorlib]System.Version liblinux.Services.RemoteCompiler::get_Version()
-		}
-	}
-	.class public RemoteCompilerDetail
-		extends [mscorlib]System.Object
-	{
-		.method public hidebysig specialname 
-			instance string get_CCompilerPath()
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method public hidebysig specialname 
-			instance string get_CppCompilerPath()
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method public hidebysig specialname 
-			instance string get_ResolvedCCompilerPath()
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method public hidebysig specialname 
-			instance string get_ResolvedCppCompilerPath()
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method public hidebysig specialname 
-			instance bool get_Installed()
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method public hidebysig specialname 
-			instance class [mscorlib]'System.Collections.Generic.List`1'<string> get_CCompilerIncludeDirectories()
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method public hidebysig specialname 
-			instance class [mscorlib]'System.Collections.Generic.List`1'<string> get_CppCompilerIncludeDirectories()
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method public hidebysig specialname 
-			instance class [mscorlib]'System.Collections.Generic.Dictionary`2'<string,string> get_CCompilerPreprocessorDefinitions()
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method public hidebysig specialname 
-			instance class [mscorlib]'System.Collections.Generic.Dictionary`2'<string,string> get_CppCompilerPreprocessorDefinitions()
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method public hidebysig specialname 
-			instance class [mscorlib]'System.Collections.Generic.List`1'<string> get_LocalCCompilerIncludeDirectories()
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method public hidebysig specialname 
-			instance class [mscorlib]'System.Collections.Generic.List`1'<string> get_LocalCppCompilerIncludeDirectories()
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method public hidebysig specialname 
-			instance string get_CIncludesPath()
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance string get_CppIncludesPath()
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance string get_CDefinesPath()
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance string get_CppDefinesPath()
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance bool get_IsGcc()
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance bool get_IsClang()
-		{
-			ret
-		}
-		.property instance class [mscorlib]'System.Collections.Generic.List`1'<string> CCompilerIncludeDirectories()
-		{
-			.get instance class [mscorlib]'System.Collections.Generic.List`1'<string> liblinux.Services.RemoteCompilerDetail::get_CCompilerIncludeDirectories()
-		}
-		.property instance string CCompilerPath()
-		{
-			.get instance string liblinux.Services.RemoteCompilerDetail::get_CCompilerPath()
-		}
-		.property instance class [mscorlib]'System.Collections.Generic.Dictionary`2'<string,string> CCompilerPreprocessorDefinitions()
-		{
-			.get instance class [mscorlib]'System.Collections.Generic.Dictionary`2'<string,string> liblinux.Services.RemoteCompilerDetail::get_CCompilerPreprocessorDefinitions()
-		}
-		.property instance string CDefinesPath()
-		{
-			.get instance string liblinux.Services.RemoteCompilerDetail::get_CDefinesPath()
-		}
-		.property instance string CIncludesPath()
-		{
-			.get instance string liblinux.Services.RemoteCompilerDetail::get_CIncludesPath()
-		}
-		.property instance class [mscorlib]'System.Collections.Generic.List`1'<string> CppCompilerIncludeDirectories()
-		{
-			.get instance class [mscorlib]'System.Collections.Generic.List`1'<string> liblinux.Services.RemoteCompilerDetail::get_CppCompilerIncludeDirectories()
-		}
-		.property instance string CppCompilerPath()
-		{
-			.get instance string liblinux.Services.RemoteCompilerDetail::get_CppCompilerPath()
-		}
-		.property instance class [mscorlib]'System.Collections.Generic.Dictionary`2'<string,string> CppCompilerPreprocessorDefinitions()
-		{
-			.get instance class [mscorlib]'System.Collections.Generic.Dictionary`2'<string,string> liblinux.Services.RemoteCompilerDetail::get_CppCompilerPreprocessorDefinitions()
-		}
-		.property instance string CppDefinesPath()
-		{
-			.get instance string liblinux.Services.RemoteCompilerDetail::get_CppDefinesPath()
-		}
-		.property instance string CppIncludesPath()
-		{
-			.get instance string liblinux.Services.RemoteCompilerDetail::get_CppIncludesPath()
-		}
-		.property instance bool Installed()
-		{
-			.get instance bool liblinux.Services.RemoteCompilerDetail::get_Installed()
-		}
-		.property instance bool IsClang()
-		{
-			.get instance bool liblinux.Services.RemoteCompilerDetail::get_IsClang()
-		}
-		.property instance bool IsGcc()
-		{
-			.get instance bool liblinux.Services.RemoteCompilerDetail::get_IsGcc()
-		}
-		.property instance class [mscorlib]'System.Collections.Generic.List`1'<string> LocalCCompilerIncludeDirectories()
-		{
-			.get instance class [mscorlib]'System.Collections.Generic.List`1'<string> liblinux.Services.RemoteCompilerDetail::get_LocalCCompilerIncludeDirectories()
-		}
-		.property instance class [mscorlib]'System.Collections.Generic.List`1'<string> LocalCppCompilerIncludeDirectories()
-		{
-			.get instance class [mscorlib]'System.Collections.Generic.List`1'<string> liblinux.Services.RemoteCompilerDetail::get_LocalCppCompilerIncludeDirectories()
-		}
-		.property instance string ResolvedCCompilerPath()
-		{
-			.get instance string liblinux.Services.RemoteCompilerDetail::get_ResolvedCCompilerPath()
-		}
-		.property instance string ResolvedCppCompilerPath()
-		{
-			.get instance string liblinux.Services.RemoteCompilerDetail::get_ResolvedCppCompilerPath()
 		}
 	}
 	.class public RemoteCompilerDownloadProgressEventArgs
@@ -4253,6 +5185,7 @@
 		extends [mscorlib]System.Object
 		implements [mscorlib]System.IDisposable
 	{
+		.custom instance void [mscorlib]System.CLSCompliantAttribute::.ctor(bool) = { bool(false) }
 		.method public virtual hidebysig newslot abstract specialname 
 			instance string get_Id()
 		{
@@ -4272,11 +5205,13 @@
 		.method public hidebysig specialname 
 			instance int32 get_LongestPathLength()
 		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
 			ret
 		}
 		.method public hidebysig specialname 
 			instance void set_LongestPathLength(int32 'value')
 		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
 			ret
 		}
 		.method public virtual hidebysig newslot abstract specialname 
@@ -4288,11 +5223,16 @@
 		{
 		}
 		.method public virtual hidebysig newslot abstract 
-			instance class [mscorlib]System.Threading.Tasks.Task DownloadDirectoriesAsync(string[] remotePaths, string[] localPaths)
+			instance class [mscorlib]System.Threading.Tasks.Task DownloadDirectoriesAsync(class [mscorlib]'System.Collections.Generic.List`1'<valuetype [mscorlib]'System.ValueTuple`2'<string,string>> paths, class [mscorlib]'System.Collections.Generic.List`1'<string> excludedPaths, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
 		{
 		}
 		.method public virtual hidebysig newslot 
 			instance void Dispose()
+		{
+			ret
+		}
+		.method family hidebysig 
+			instance void OnProgress(string message, string source)
 		{
 			ret
 		}
@@ -4344,145 +5284,10 @@
 		.field static public initonly string 'GENERAL'
 		.field static public initonly string 'RSYNC'
 	}
-	.class public RemoteLinuxCompiler
-		extends liblinux.Services.RemoteCompiler
-	{
-		.method public hidebysig specialname 
-			instance class liblinux.ConnectionInfo get_ConnectionInfo()
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void set_ConnectionInfo(class liblinux.ConnectionInfo 'value')
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method public hidebysig specialname 
-			instance class liblinux.UnixSystem get_RemoteSystem()
-		{
-			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
-			ret
-		}
-		.method public virtual hidebysig specialname 
-			instance class 'liblinux.IO.Unified.IFileSystem`1'<class 'liblinux.IO.Unified.IDirectory'> get_FileSystem()
-		{
-			ret
-		}
-		.method public virtual hidebysig specialname 
-			instance class 'liblinux.Shell.Unified.ICommandHost`2'<class liblinux.Shell.ICommand,class liblinux.Shell.IAsyncCommand> get_Shell()
-		{
-			ret
-		}
-		.method public virtual hidebysig specialname 
-			instance bool get_HasLocalSysroot()
-		{
-			ret
-		}
-		.method public virtual hidebysig specialname 
-			instance bool get_LocalSysrootEnabled()
-		{
-			ret
-		}
-		.method public virtual hidebysig specialname 
-			instance valuetype [mscorlib]System.DateTime get_LastSysrootUpdate()
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void .ctor(class liblinux.ConnectionInfo connectionInfo)
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void .ctor(class liblinux.Persistence.ConnectionInfoStore store, class liblinux.ConnectionInfo connectionInfo, class liblinux.Services.RemoteCompilerIOImplBase ioImpl)
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void .ctor(int32 connectionId)
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void .ctor(string connectionName)
-		{
-			ret
-		}
-		.method public hidebysig specialname 
-			instance void .ctor(string connectionName, class liblinux.Services.RemoteCompilerIOImplBase ioImpl)
-		{
-			ret
-		}
-		.method family virtual hidebysig 
-			instance void Cleanup()
-		{
-			ret
-		}
-		.method family virtual hidebysig 
-			instance string GetDefaultLocalDestinationDirectory()
-		{
-			ret
-		}
-		.method public virtual hidebysig 
-			instance void Cancel()
-		{
-			ret
-		}
-		.method public virtual hidebysig 
-			instance void PurgeLocalSysroot()
-		{
-			ret
-		}
-		.method family virtual hidebysig 
-			instance void Initialize()
-		{
-			ret
-		}
-		.method family virtual hidebysig 
-			instance void AddSettingsToWrite(class [System.Xml.Linq]System.Xml.Linq.XElement element)
-		{
-			ret
-		}
-		.method family virtual hidebysig 
-			instance void PersistSysrootInfo()
-		{
-			ret
-		}
-		.property instance class liblinux.ConnectionInfo ConnectionInfo()
-		{
-			.get instance class liblinux.ConnectionInfo liblinux.Services.RemoteLinuxCompiler::get_ConnectionInfo()
-			.set instance void liblinux.Services.RemoteLinuxCompiler::set_ConnectionInfo(class liblinux.ConnectionInfo)
-		}
-		.property instance class 'liblinux.IO.Unified.IFileSystem`1'<class 'liblinux.IO.Unified.IDirectory'> FileSystem()
-		{
-			.get instance class 'liblinux.IO.Unified.IFileSystem`1'<class 'liblinux.IO.Unified.IDirectory'> liblinux.Services.RemoteLinuxCompiler::get_FileSystem()
-		}
-		.property instance bool HasLocalSysroot()
-		{
-			.get instance bool liblinux.Services.RemoteLinuxCompiler::get_HasLocalSysroot()
-		}
-		.property instance valuetype [mscorlib]System.DateTime LastSysrootUpdate()
-		{
-			.get instance valuetype [mscorlib]System.DateTime liblinux.Services.RemoteLinuxCompiler::get_LastSysrootUpdate()
-		}
-		.property instance bool LocalSysrootEnabled()
-		{
-			.get instance bool liblinux.Services.RemoteLinuxCompiler::get_LocalSysrootEnabled()
-		}
-		.property instance class liblinux.UnixSystem RemoteSystem()
-		{
-			.get instance class liblinux.UnixSystem liblinux.Services.RemoteLinuxCompiler::get_RemoteSystem()
-		}
-		.property instance class 'liblinux.Shell.Unified.ICommandHost`2'<class liblinux.Shell.ICommand,class liblinux.Shell.IAsyncCommand> Shell()
-		{
-			.get instance class 'liblinux.Shell.Unified.ICommandHost`2'<class liblinux.Shell.ICommand,class liblinux.Shell.IAsyncCommand> liblinux.Services.RemoteLinuxCompiler::get_Shell()
-		}
-	}
 	.class public SftpRemoteCompilerIOImpl
 		extends liblinux.Services.RemoteCompilerIOImplBase
 	{
+		.custom instance void [mscorlib]System.CLSCompliantAttribute::.ctor(bool) = { bool(false) }
 		.method public virtual hidebysig specialname 
 			instance string get_Id()
 		{
@@ -4501,7 +5306,7 @@
 			ret
 		}
 		.method public virtual hidebysig 
-			instance class [mscorlib]System.Threading.Tasks.Task DownloadDirectoriesAsync(string[] remotePaths, string[] localPaths)
+			instance class [mscorlib]System.Threading.Tasks.Task DownloadDirectoriesAsync(class [mscorlib]'System.Collections.Generic.List`1'<valuetype [mscorlib]'System.ValueTuple`2'<string,string>> paths, class [mscorlib]'System.Collections.Generic.List`1'<string> excludedPaths, valuetype [mscorlib]System.Threading.CancellationToken cancellation)
 		{
 			ret
 		}
@@ -4575,6 +5380,18 @@
 			instance void set_IsFaulted(bool 'value')
 		{
 		}
+		.method public final virtual hidebysig newslot specialname 
+			instance bool get_RedirectErrorOutputToOutput()
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
+		.method public final virtual hidebysig newslot specialname 
+			instance void set_RedirectErrorOutputToOutput(bool 'value')
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+			ret
+		}
 		.method famorassem virtual hidebysig newslot 
 			instance void Initialize<(liblinux.RemoteSystemBase, liblinux.IRemoteSystemBare) 'T'>(!!0 remoteSystem, object state)
 		{
@@ -4624,6 +5441,11 @@
 			.get instance string liblinux.Shell.CommandBase::get_Output()
 			.set instance void liblinux.Shell.CommandBase::set_Output(string)
 		}
+		.property instance bool RedirectErrorOutputToOutput()
+		{
+			.get instance bool liblinux.Shell.CommandBase::get_RedirectErrorOutputToOutput()
+			.set instance void liblinux.Shell.CommandBase::set_RedirectErrorOutputToOutput(bool)
+		}
 		.property instance valuetype [mscorlib]System.TimeSpan Timeout()
 		{
 			.get instance valuetype [mscorlib]System.TimeSpan liblinux.Shell.CommandBase::get_Timeout()
@@ -4632,7 +5454,7 @@
 	}
 	.class public CommandHost
 		extends [mscorlib]System.Object
-		implements liblinux.Shell.ICommandHost, class 'liblinux.Shell.Unified.ICommandHost`2'<class liblinux.Shell.INonHostedCommand,class liblinux.Shell.NonHostedCommand>
+		implements liblinux.Shell.ICommandHost, liblinux.Shell.ISimpleShell, [mscorlib]System.IDisposable
 	{
 		.method public hidebysig specialname 
 			instance void .ctor(class liblinux.RemoteSystemBase remoteSystem)
@@ -4650,7 +5472,7 @@
 			ret
 		}
 		.method public virtual hidebysig newslot 
-			instance class liblinux.Shell.INonHostedCommand ExecuteCommand(string commandText, valuetype [mscorlib]System.TimeSpan timeout)
+			instance class liblinux.Shell.INonHostedCommand ExecuteCommand(string commandText, valuetype [mscorlib]'System.Nullable`1'<valuetype [mscorlib]System.TimeSpan> timeout)
 		{
 			ret
 		}
@@ -4726,6 +5548,11 @@
 		}
 		.method public virtual hidebysig newslot 
 			instance !!1 ExecuteCommandAsynchronously<(liblinux.Shell.CommandBase, !!1) 'CommandType', (liblinux.Shell.IAsyncronousCommand) 'CommandInterfaceType'>(!!0 command)
+		{
+			ret
+		}
+		.method public final virtual hidebysig newslot 
+			instance void Dispose()
 		{
 			ret
 		}
@@ -4926,7 +5753,7 @@
 			ret
 		}
 		.method public virtual hidebysig newslot 
-			instance bool Wait(valuetype [mscorlib]System.TimeSpan timeout)
+			instance bool Wait(valuetype [mscorlib]'System.Nullable`1'<valuetype [mscorlib]System.TimeSpan> timeout)
 		{
 			ret
 		}
@@ -4941,7 +5768,7 @@
 			ret
 		}
 		.method public final virtual hidebysig newslot 
-			instance class [mscorlib]'System.Threading.Tasks.Task`1'<bool> WaitAsync(valuetype [mscorlib]System.TimeSpan timeout, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+			instance class [mscorlib]'System.Threading.Tasks.Task`1'<bool> WaitAsync(valuetype [mscorlib]'System.Nullable`1'<valuetype [mscorlib]System.TimeSpan> timeout, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
 		{
 			ret
 		}
@@ -5347,7 +6174,7 @@
 		{
 		}
 		.method public virtual hidebysig newslot abstract 
-			instance class [mscorlib]'System.Threading.Tasks.Task`1'<bool> WaitAsync(valuetype [mscorlib]System.TimeSpan timeout, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+			instance class [mscorlib]'System.Threading.Tasks.Task`1'<bool> WaitAsync(valuetype [mscorlib]'System.Nullable`1'<valuetype [mscorlib]System.TimeSpan> timeout, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
 		{
 		}
 		.method public virtual hidebysig newslot abstract specialname 
@@ -5435,7 +6262,7 @@
 		{
 		}
 		.method public virtual hidebysig newslot abstract 
-			instance bool Wait(valuetype [mscorlib]System.TimeSpan timeout)
+			instance bool Wait(valuetype [mscorlib]'System.Nullable`1'<valuetype [mscorlib]System.TimeSpan> timeout)
 		{
 		}
 		.method public virtual hidebysig newslot abstract 
@@ -5504,6 +6331,14 @@
 			instance bool get_IsFaulted()
 		{
 		}
+		.method public virtual hidebysig newslot abstract specialname 
+			instance bool get_RedirectErrorOutputToOutput()
+		{
+		}
+		.method public virtual hidebysig newslot abstract specialname 
+			instance void set_RedirectErrorOutputToOutput(bool 'value')
+		{
+		}
 		.property instance string CommandText()
 		{
 			.get instance string liblinux.Shell.ICommand::get_CommandText()
@@ -5525,6 +6360,11 @@
 		{
 			.get instance string liblinux.Shell.ICommand::get_Output()
 		}
+		.property instance bool RedirectErrorOutputToOutput()
+		{
+			.get instance bool liblinux.Shell.ICommand::get_RedirectErrorOutputToOutput()
+			.set instance void liblinux.Shell.ICommand::set_RedirectErrorOutputToOutput(bool)
+		}
 		.property instance valuetype [mscorlib]System.TimeSpan Timeout()
 		{
 			.get instance valuetype [mscorlib]System.TimeSpan liblinux.Shell.ICommand::get_Timeout()
@@ -5532,12 +6372,8 @@
 		}
 	}
 	.class public interface abstract ICommandHost
-		implements class 'liblinux.Shell.Unified.ICommandHost`2'<class liblinux.Shell.INonHostedCommand,class liblinux.Shell.NonHostedCommand>
+		implements liblinux.Shell.ISimpleShell, [mscorlib]System.IDisposable
 	{
-		.method public virtual hidebysig newslot abstract 
-			instance class liblinux.Shell.INonHostedCommand ExecuteCommand(string commandText)
-		{
-		}
 		.method public virtual hidebysig newslot abstract 
 			instance class liblinux.Shell.NonHostedCommand ExecuteCommandAsynchronously(string commandText)
 		{
@@ -5600,7 +6436,7 @@
 		}
 	}
 	.class public interface abstract ICommandingShell
-		implements liblinux.Shell.ICommandHost, class 'liblinux.Shell.Unified.ICommandHost`2'<class liblinux.Shell.INonHostedCommand,class liblinux.Shell.NonHostedCommand>
+		implements liblinux.Shell.ICommandHost, liblinux.Shell.ISimpleShell, [mscorlib]System.IDisposable
 	{
 		.method public virtual hidebysig newslot abstract 
 			instance class liblinux.Shell.IShell Open()
@@ -5626,22 +6462,9 @@
 			instance string get_ErrorOutput()
 		{
 		}
-		.method public virtual hidebysig newslot abstract specialname 
-			instance bool get_RedirectErrorOutputToOutput()
-		{
-		}
-		.method public virtual hidebysig newslot abstract specialname 
-			instance void set_RedirectErrorOutputToOutput(bool 'value')
-		{
-		}
 		.property instance string ErrorOutput()
 		{
 			.get instance string liblinux.Shell.INonHostedCommand::get_ErrorOutput()
-		}
-		.property instance bool RedirectErrorOutputToOutput()
-		{
-			.get instance bool liblinux.Shell.INonHostedCommand::get_RedirectErrorOutputToOutput()
-			.set instance void liblinux.Shell.INonHostedCommand::set_RedirectErrorOutputToOutput(bool)
 		}
 	}
 	.class public interface abstract IShell
@@ -5837,6 +6660,18 @@
 			.get instance int64 liblinux.Shell.IShellStream::get_Length()
 		}
 	}
+	.class public interface abstract ISimpleShell
+		implements [mscorlib]System.IDisposable
+	{
+		.method public virtual hidebysig newslot abstract 
+			instance class liblinux.Shell.INonHostedCommand ExecuteCommand(string commandText, int32 timeout)
+		{
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance class liblinux.Shell.INonHostedCommand ExecuteCommand(string commandText, valuetype [mscorlib]'System.Nullable`1'<valuetype [mscorlib]System.TimeSpan> timeout)
+		{
+		}
+	}
 	.class public interface abstract IStreamableCommand
 		implements liblinux.Shell.ICommand, [mscorlib]System.IDisposable
 	{
@@ -5880,6 +6715,16 @@
 		{
 			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
 		}
+		.method public virtual hidebysig newslot abstract specialname 
+			instance void add_Finished(class [mscorlib]System.EventHandler 'value')
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+		}
+		.method public virtual hidebysig newslot abstract specialname 
+			instance void remove_Finished(class [mscorlib]System.EventHandler 'value')
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.CompilerGeneratedAttribute::.ctor() = { }
+		}
 		.method public virtual hidebysig newslot abstract 
 			instance void Write(string text)
 		{
@@ -5894,38 +6739,6 @@
 		}
 		.method public virtual hidebysig newslot abstract specialname 
 			instance void set_DelayOutputReceiveEvents(bool 'value')
-		{
-		}
-		.method public virtual hidebysig newslot abstract specialname 
-			instance bool get_Queue()
-		{
-		}
-		.method public virtual hidebysig newslot abstract specialname 
-			instance void set_Queue(bool 'value')
-		{
-		}
-		.method public virtual hidebysig newslot abstract specialname 
-			instance valuetype [mscorlib]System.TimeSpan get_QueueTimeout()
-		{
-		}
-		.method public virtual hidebysig newslot abstract specialname 
-			instance void set_QueueTimeout(valuetype [mscorlib]System.TimeSpan 'value')
-		{
-		}
-		.method public virtual hidebysig newslot abstract specialname 
-			instance valuetype [mscorlib]System.TimeSpan get_QueueInterval()
-		{
-		}
-		.method public virtual hidebysig newslot abstract specialname 
-			instance void set_QueueInterval(valuetype [mscorlib]System.TimeSpan 'value')
-		{
-		}
-		.method public virtual hidebysig newslot abstract specialname 
-			instance int32 get_QueueSize()
-		{
-		}
-		.method public virtual hidebysig newslot abstract specialname 
-			instance void set_QueueSize(int32 'value')
 		{
 		}
 		.method public virtual hidebysig newslot abstract specialname 
@@ -5944,6 +6757,15 @@
 			instance void BeginErrorOutputRead()
 		{
 		}
+		.method public virtual hidebysig newslot abstract 
+			instance bool Wait([opt] valuetype [mscorlib]'System.Nullable`1'<valuetype [mscorlib]System.TimeSpan> timeout)
+		{
+			.param [1] = nullref
+		}
+		.method public virtual hidebysig newslot abstract 
+			instance class [mscorlib]'System.Threading.Tasks.Task`1'<bool> WaitAsync(valuetype [mscorlib]'System.Nullable`1'<valuetype [mscorlib]System.TimeSpan> timeout, valuetype [mscorlib]System.Threading.CancellationToken cancellationToken)
+		{
+		}
 		.event class [mscorlib]'System.EventHandler`1'<class liblinux.Shell.OutputReceivedEventArgs> ErrorOutputLineReceived
 		{
 			.addon instance void liblinux.Shell.IStreamableCommand::add_ErrorOutputLineReceived(class [mscorlib]'System.EventHandler`1'<class liblinux.Shell.OutputReceivedEventArgs>)
@@ -5953,6 +6775,11 @@
 		{
 			.addon instance void liblinux.Shell.IStreamableCommand::add_ErrorOutputReceived(class [mscorlib]'System.EventHandler`1'<class liblinux.Shell.OutputReceivedEventArgs>)
 			.removeon instance void liblinux.Shell.IStreamableCommand::remove_ErrorOutputReceived(class [mscorlib]'System.EventHandler`1'<class liblinux.Shell.OutputReceivedEventArgs>)
+		}
+		.event [mscorlib]System.EventHandler Finished
+		{
+			.addon instance void liblinux.Shell.IStreamableCommand::add_Finished(class [mscorlib]System.EventHandler)
+			.removeon instance void liblinux.Shell.IStreamableCommand::remove_Finished(class [mscorlib]System.EventHandler)
 		}
 		.event class [mscorlib]'System.EventHandler`1'<class liblinux.Shell.OutputReceivedEventArgs> OutputLineReceived
 		{
@@ -5977,26 +6804,6 @@
 		{
 			.get instance bool liblinux.Shell.IStreamableCommand::get_DelayOutputReceiveEvents()
 			.set instance void liblinux.Shell.IStreamableCommand::set_DelayOutputReceiveEvents(bool)
-		}
-		.property instance bool Queue()
-		{
-			.get instance bool liblinux.Shell.IStreamableCommand::get_Queue()
-			.set instance void liblinux.Shell.IStreamableCommand::set_Queue(bool)
-		}
-		.property instance valuetype [mscorlib]System.TimeSpan QueueInterval()
-		{
-			.get instance valuetype [mscorlib]System.TimeSpan liblinux.Shell.IStreamableCommand::get_QueueInterval()
-			.set instance void liblinux.Shell.IStreamableCommand::set_QueueInterval(valuetype [mscorlib]System.TimeSpan)
-		}
-		.property instance int32 QueueSize()
-		{
-			.get instance int32 liblinux.Shell.IStreamableCommand::get_QueueSize()
-			.set instance void liblinux.Shell.IStreamableCommand::set_QueueSize(int32)
-		}
-		.property instance valuetype [mscorlib]System.TimeSpan QueueTimeout()
-		{
-			.get instance valuetype [mscorlib]System.TimeSpan liblinux.Shell.IStreamableCommand::get_QueueTimeout()
-			.set instance void liblinux.Shell.IStreamableCommand::set_QueueTimeout(valuetype [mscorlib]System.TimeSpan)
 		}
 	}
 	.class public interface abstract IStreamingShell
@@ -6062,14 +6869,6 @@
 		}
 		.method public virtual hidebysig newslot abstract specialname 
 			instance void set_DelayOutputReceiveEvents(bool 'value')
-		{
-		}
-		.method public virtual hidebysig newslot abstract 
-			instance void Open(class liblinux.RemoteSystemBase remoteSystem)
-		{
-		}
-		.method public virtual hidebysig newslot abstract 
-			instance void Open(class liblinux.RemoteSystemBase remoteSystem, class liblinux.Shell.ShellCreateOptions options)
 		{
 		}
 		.method public virtual hidebysig newslot abstract 
@@ -6144,16 +6943,6 @@
 	{
 		.method public final virtual hidebysig newslot specialname 
 			instance string get_ErrorOutput()
-		{
-			ret
-		}
-		.method public final virtual hidebysig newslot specialname 
-			instance bool get_RedirectErrorOutputToOutput()
-		{
-			ret
-		}
-		.method public final virtual hidebysig newslot specialname 
-			instance void set_RedirectErrorOutputToOutput(bool 'value')
 		{
 			ret
 		}
@@ -6250,11 +7039,6 @@
 		.property instance string ErrorOutput()
 		{
 			.get instance string liblinux.Shell.NonHostedCommand::get_ErrorOutput()
-		}
-		.property instance bool RedirectErrorOutputToOutput()
-		{
-			.get instance bool liblinux.Shell.NonHostedCommand::get_RedirectErrorOutputToOutput()
-			.set instance void liblinux.Shell.NonHostedCommand::set_RedirectErrorOutputToOutput(bool)
 		}
 	}
 	.class public OutputReceivedEventArgs
@@ -7417,6 +8201,15 @@
 		}
 	}
 }
+.namespace liblinux.Shell.Commanding
+{
+	.class public abstract sealed ExitCodes
+		extends [mscorlib]System.Object
+	{
+		.field static public literal int32 CommandNotFound = int32(0x0000007F)
+		.field static public literal int32 CommandSucceeded = int32(0x00000000)
+	}
+}
 .namespace liblinux.Shell.Extensions
 {
 	.class public abstract sealed ShellExtensions
@@ -7437,10 +8230,17 @@
 		.method public static hidebysig 
 			string CreateCommandRedirectStderr(string commandLine)
 		{
+			.custom instance void [mscorlib]System.ObsoleteAttribute::.ctor(string) = { string('CreateCommandRedirectStderr is deprecated, please use TargetShell methods instead.') }
 			ret
 		}
 		.method public static hidebysig 
 			void WriteLineNoHistory(class liblinux.Shell.Extensions.ShellWithLines shell, string line)
+		{
+			.custom instance void [mscorlib]System.Runtime.CompilerServices.ExtensionAttribute::.ctor() = { }
+			ret
+		}
+		.method public static hidebysig 
+			void WriteLineNoHistory(class liblinux.Shell.IShell shell, string line)
 		{
 			.custom instance void [mscorlib]System.Runtime.CompilerServices.ExtensionAttribute::.ctor() = { }
 			ret

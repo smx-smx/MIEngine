@@ -1,0 +1,43 @@
+---
+parameters:
+  rids: ["win-x86", "win10-arm64", "osx-x64", "osx-arm64", "linux-x64", "linux-arm", "linux-arm64", "linux-musl-x64", "linux-musl-arm64" ]
+
+steps:
+- checkout: self
+  clean: true
+
+- template: ../tasks/NuGetToolInstaller.yml
+
+- template: ../tasks/MicroBuildSigningPlugin.yml
+
+- template: ../tasks/UseDotNet.yml
+
+- template: ../steps/BuildSolution.yml
+  parameters:
+    Configuration: 'Lab.Release'
+
+- template: ../steps/CollectAndPublishBinaries.yml
+  parameters:
+    TargetFolder: '$(Build.StagingDirectory)\bin'
+    ArtifactName: 'bin'
+
+- template: ../tasks/SignVerify.yml
+  parameters:
+    TargetFolders: '$(Build.StagingDirectory)\bin'
+    ExcludeFolders: '.git MicroBuild'
+
+- template: ../steps/CopyAndPublishSymbols.yml
+
+- script: |
+    mkdir $(Build.StagingDirectory)\zips\
+  displayName: "Create $(Build.StagingDirectory)/zips/ folder"
+
+- ${{ each rid in parameters.rids }}:
+  - template: ../steps/PublishOpenDebugAD7.yml
+    parameters:
+      Configuration: 'Lab.Release'
+      RuntimeID: '${{ rid }}'
+      SignedBinariesFolder: '$(Build.StagingDirectory)\bin'
+
+- template: ../tasks/MicroBuildCleanup.yml
+...
