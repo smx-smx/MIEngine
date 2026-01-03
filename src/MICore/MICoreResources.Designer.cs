@@ -19,7 +19,7 @@ namespace MICore {
     // class via a tool like ResGen or Visual Studio.
     // To add or remove a member, edit your .ResX file then rerun ResGen
     // with the /str option, or rebuild your VS project.
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "16.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "17.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     public class MICoreResources {
@@ -139,6 +139,15 @@ namespace MICore {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Debugging C++ on iOS Mobile has been deprecated and is no longer available.
+        /// </summary>
+        public static string Error_Deprecated_iOS_Debugging {
+            get {
+                return ResourceManager.GetString("Error_Deprecated_iOS_Debugging", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to PipePath cannot be empty..
         /// </summary>
         public static string Error_EmptyPipePath {
@@ -182,6 +191,15 @@ namespace MICore {
         public static string Error_FailedToEnterBreakState {
             get {
                 return ResourceManager.GetString("Error_FailedToEnterBreakState", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to &apos;visualizerFile&apos; must be a string or array of strings..
+        /// </summary>
+        public static string Error_IncorrectVisualizerFileFormat {
+            get {
+                return ResourceManager.GetString("Error_IncorrectVisualizerFileFormat", resourceCulture);
             }
         }
         

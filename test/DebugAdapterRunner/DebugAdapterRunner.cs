@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 
@@ -49,10 +50,14 @@ namespace DebugAdapterRunner
         // The current thread id which is automatically updated when the tool receives a stopped event
         public int CurrentThreadId;
 
+        public DateTime StartTime { get; } = DateTime.Now;
+
         // Keep a trace of the debug adapter output if requested
         private StringBuilder _debugAdapterOutput = new StringBuilder();
 
         private IDictionary<string, CallbackRequestHandler> _callbackHandlers = new Dictionary<string, CallbackRequestHandler>();
+
+        private static readonly Encoding s_utf8NoBOM = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 
         // Current list of responses received from the debug adapter
         public List<string> Responses { get; private set; }
@@ -153,12 +158,31 @@ namespace DebugAdapterRunner
             startInfo.CreateNoWindow = true;
             startInfo.RedirectStandardInput = true;
             startInfo.RedirectStandardOutput = true;
-            startInfo.RedirectStandardError = true;                
+            startInfo.RedirectStandardError = true;
+            startInfo.StandardOutputEncoding = s_utf8NoBOM;
+            startInfo.StandardInputEncoding = s_utf8NoBOM;
 
             if (redirectVSAssert)
             {
-                _assertionFileName = Path.Combine(Path.GetTempPath(), string.Format(CultureInfo.InvariantCulture, "vsassert.{0}.txt", Guid.NewGuid()));
-                startInfo.Environment["VSASSERT"] = _assertionFileName;
+                string vsassertPath = null;
+
+                // First see if the caller already specified the assertion path
+                if (additionalEnvironmentVariables != null)
+                {
+                    vsassertPath = additionalEnvironmentVariables
+                        .Where(pair => pair.Key.Equals("VSASSERT", StringComparison.OrdinalIgnoreCase))
+                        .Select(pair => pair.Value)
+                        .FirstOrDefault();
+                }
+
+                if (string.IsNullOrEmpty(vsassertPath))
+                {
+                    // If the caller didn't specify a path, create a temporary one
+                    vsassertPath = Path.Combine(Path.GetTempPath(), string.Format(CultureInfo.InvariantCulture, "vsassert.{0}.txt", Guid.NewGuid()));
+                    startInfo.Environment["VSASSERT"] = vsassertPath;
+                }
+
+                _assertionFileName = vsassertPath;
             }
 
             if (additionalEnvironmentVariables != null)

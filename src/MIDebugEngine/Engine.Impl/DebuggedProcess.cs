@@ -52,6 +52,7 @@ namespace Microsoft.MIDebugEngine
         private IProcessSequence _childProcessHandler;
         private bool _deleteEntryPointBreakpoint;
         private string _entryPointBreakpoint = string.Empty;
+        private bool? _simpleValuesExcludesRefTypes = null;
 
         private LaunchOptions _launchOptions;
 
@@ -68,7 +69,7 @@ namespace Microsoft.MIDebugEngine
             _deleteEntryPointBreakpoint = false;
             MICommandFactory = MICommandFactory.GetInstance(launchOptions.DebuggerMIMode, this);
             _waitDialog = (MICommandFactory.SupportsStopOnDynamicLibLoad() && launchOptions.WaitDynamicLibLoad) ? new HostWaitDialog(ResourceStrings.LoadingSymbolMessage, ResourceStrings.LoadingSymbolCaption) : null;
-            Natvis = new Natvis.Natvis(this, launchOptions.ShowDisplayString);
+            Natvis = new Natvis.Natvis(this, launchOptions.ShowDisplayString, configStore);
 
             // we do NOT have real Win32 process IDs, so we use a guid
             AD_PROCESS_ID pid = new AD_PROCESS_ID();
@@ -546,7 +547,7 @@ namespace Microsoft.MIDebugEngine
         public async Task Initialize(HostWaitLoop waitLoop, CancellationToken token)
         {
             bool success = false;
-            Natvis.Initialize(_launchOptions.VisualizerFile);
+            Natvis.Initialize(_launchOptions.VisualizerFiles);
             int total = 1;
 
             await this.WaitForConsoleDebuggerInitialize(token);
@@ -626,6 +627,7 @@ namespace Microsoft.MIDebugEngine
             if (_launchOptions.DebuggerMIMode == MIMode.Gdb)
             {
                 commands.Add(new LaunchCommand("-interpreter-exec console \"set pagination off\""));
+                commands.Add(new LaunchCommand("set debuginfod enabled on", ignoreFailures:true));
             }
 
             // When user specifies loading directives then the debugger cannot auto load symbols, the MIEngine must intervene at each solib-load event and make a determination
@@ -692,17 +694,11 @@ namespace Microsoft.MIDebugEngine
                 LocalLaunchOptions localLaunchOptions = _launchOptions as LocalLaunchOptions;
                 if (this.IsCoreDump)
                 {
-                    // Add executable information
-                    this.AddExecutablePathCommand(commands);
+                    // Load executable and core dump
+                    this.AddExecutableAndCorePathCommand(commands);
 
-                    // Important: this must occur after file-exec-and-symbols but before anything else.
+                    // Important: this must occur after executable load but before anything else.
                     this.AddGetTargetArchitectureCommand(commands);
-
-                    // Add core dump information (linux/mac does not support quotes around this path but spaces in the path do work)
-                    string coreDump = this.UseUnixPathSeparators ? _launchOptions.CoreDumpPath : this.EnsureProperPathSeparators(_launchOptions.CoreDumpPath, true);
-                    string coreDumpCommand = _launchOptions.DebuggerMIMode == MIMode.Lldb ? String.Concat("target create --core ", coreDump) : String.Concat("-target-select core ", coreDump);
-                    string coreDumpDescription = String.Format(CultureInfo.CurrentCulture, ResourceStrings.LoadingCoreDumpMessage, _launchOptions.CoreDumpPath);
-                    commands.Add(new LaunchCommand(coreDumpCommand, coreDumpDescription, ignoreFailures: false));
                 }
                 else if (_launchOptions.ProcessId.HasValue)
                 {
@@ -924,6 +920,30 @@ namespace Microsoft.MIDebugEngine
             commands.Add(new LaunchCommand("-file-exec-and-symbols " + exe, description, ignoreFailures: false, failureHandler: failureHandler));
         }
 
+        private void AddExecutableAndCorePathCommand(IList<LaunchCommand> commands)
+        {
+            string command;
+            if (_launchOptions.DebuggerMIMode == MIMode.Lldb)
+            {
+                // LLDB requires loading the executable and the core into the same target, using one command. Quotes in the path are supported.
+                string exePath = this.EnsureProperPathSeparators(_launchOptions.ExePath, true);
+                string corePath = this.EnsureProperPathSeparators(_launchOptions.CoreDumpPath, true);
+                command = String.Concat("file ", exePath, " -c ", corePath);
+            }
+            else
+            {
+                // GDB requires loading the executable and core separately.
+                // Note: Linux/mac do not support quotes around this path, but spaces in the path do work.
+                this.AddExecutablePathCommand(commands);
+                string corePathNoQuotes = this.EnsureProperPathSeparators(_launchOptions.CoreDumpPath, true, true);
+                command = String.Concat("-target-select core ", corePathNoQuotes);
+            }
+
+            // Load core dump information
+            string description = String.Format(CultureInfo.CurrentCulture, ResourceStrings.LoadingCoreDumpMessage, _launchOptions.CoreDumpPath);
+            commands.Add(new LaunchCommand(command, description, ignoreFailures: false));
+        }
+
         private void DetermineAndAddExecutablePathCommand(IList<LaunchCommand> commands, UnixShellPortLaunchOptions launchOptions)
         {
             // TODO: connecting to OSX via SSH doesn't work yet. Show error after connection manager dialog gets dismissed.
@@ -1039,6 +1059,8 @@ namespace Microsoft.MIDebugEngine
             {
                 _waitDialog.Dispose();
             }
+
+            Natvis?.Dispose();
 
             Logger.Flush();
         }
@@ -1241,13 +1263,20 @@ namespace Microsoft.MIDebugEngine
                     }
                     else
                     {
-                        // This is not one of our breakpoints, so stop with a message. Possibly it
-                        // was set by the user via "-exec break ...", so display the available
-                        // information.
-                        string desc = String.Format(CultureInfo.CurrentCulture,
-                                                    ResourceStrings.UnknownBreakpoint,
-                                                    bkptno, addr);
-                        _callback.OnException(thread, desc, "", 0);
+                        // This is not one of our breakpoints. Possibly it was set by the user
+                        // via "-exec break ...", so display the available information.
+                        switch (_launchOptions.UnknownBreakpointHandling)
+                        {
+                            case MICore.Json.LaunchOptions.UnknownBreakpointHandling.Throw:
+                                string desc = String.Format(CultureInfo.CurrentCulture,
+                                                            ResourceStrings.UnknownBreakpoint,
+                                                            bkptno, addr);
+                                _callback.OnException(thread, desc, "", 0);
+                                break;
+                            case MICore.Json.LaunchOptions.UnknownBreakpointHandling.Stop:
+                                _callback.OnBreakpoint(thread, new ReadOnlyCollection<object>(new AD7BoundBreakpoint[] { }));
+                                break;
+                        }
                     }
                 }
             }
@@ -1330,14 +1359,18 @@ namespace Microsoft.MIDebugEngine
             else if (reason == "signal-received")
             {
                 string name = results.Results.TryFindString("signal-name");
+                AsyncBreakSignal signal = MICommandFactory.GetAsyncBreakSignal(results.Results);
+                bool isAsyncBreak = signal == AsyncBreakSignal.SIGTRAP || (IsUsingExecInterrupt && signal == AsyncBreakSignal.SIGINT);
                 if ((name == "SIG32") || (name == "SIG33"))
                 {
                     // we are going to ignore these (Sigma) signals for now
                     CmdContinueAsyncConditional(breakRequest);
                 }
-                else if (MICommandFactory.IsAsyncBreakSignal(results.Results))
+                else if (isAsyncBreak)
                 {
                     _callback.OnAsyncBreakComplete(thread);
+                    // Reset flag for real async break
+                    IsUsingExecInterrupt = false;
                 }
                 else
                 {
@@ -1979,8 +2012,26 @@ namespace Microsoft.MIDebugEngine
         //NOTE: eval is not called
         public async Task<List<ArgumentList>> GetParameterInfoOnly(AD7Thread thread, bool values, bool types, uint low, uint high)
         {
-            // If values are requested, request simple values, otherwise we'll use -var-create to get the type of argument it is.
-            var frames = await MICommandFactory.StackListArguments(values ? PrintValue.SimpleValues : PrintValue.NoValues, thread.Id, low, high);
+            PrintValue printValue = values ? PrintValue.SimpleValues : PrintValue.NoValues;
+            if (types && !values)
+            {
+                // We want types but not values. There is no PrintValue option for this, but if
+                // SimpleValues excludes printing values for references to compound types, then
+                // the fastest approach is to use SimpleValues (and ignore the values).
+                // Otherwise, the potential performance penalty of fetching values for
+                // references to compound types is too high, so use NoValues and follow up with
+                // -var-create to get the types.
+                if (!_simpleValuesExcludesRefTypes.HasValue)
+                {
+                    _simpleValuesExcludesRefTypes  = await this.MICommandFactory.SupportsSimpleValuesExcludesRefTypes();
+                }
+                if (_simpleValuesExcludesRefTypes.Value)
+                {
+                    printValue = PrintValue.SimpleValues;
+                }
+            }
+
+            var frames = await MICommandFactory.StackListArguments(printValue, thread.Id, low, high);
             List<ArgumentList> parameters = new List<ArgumentList>();
 
             foreach (var f in frames)

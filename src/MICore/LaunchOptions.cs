@@ -20,6 +20,7 @@ using Microsoft.VisualStudio.Debugger.Interop;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Text;
+using MICore.Json.LaunchOptions;
 
 namespace MICore
 {
@@ -369,7 +370,7 @@ namespace MICore
 
         public static ReadOnlyCollection<SourceMapEntry> CreateCollection(Dictionary<string, object> source)
         {
-            IList<SourceMapEntry> sourceMaps = new List<SourceMapEntry>(source.Keys.Count);
+            var sourceMaps = new List<SourceMapEntry>(source.Keys.Count);
 
             foreach (var item in source)
             {
@@ -415,6 +416,11 @@ namespace MICore
                     throw new InvalidLaunchOptionsException(String.Format(CultureInfo.CurrentCulture, MICoreResources.Error_SourceFileMapInvalidEditorPath));
                 }
             }
+
+            // Ensure the map is sorted such that more specific directories are in front of less specific by sorting the map
+            // in descending order of the compile time path
+            sourceMaps.Sort((x, y) => string.CompareOrdinal(y.CompileTimePath, x.CompileTimePath));
+            
             return new ReadOnlyCollection<SourceMapEntry>(sourceMaps);
         }
     }
@@ -961,19 +967,10 @@ namespace MICore
             }
         }
 
-        private string _visualizerFile;
         /// <summary>
-        /// [Optional] Natvis file name - from install location
+        /// Collection of natvis files to use when evaluating
         /// </summary>
-        public string VisualizerFile
-        {
-            get { return _visualizerFile; }
-            set
-            {
-                VerifyCanModifyProperty(nameof(VisualizerFile));
-                _visualizerFile = value;
-            }
-        }
+        public List<string> VisualizerFiles { get; } = new List<string>();
 
         private bool _waitDynamicLibLoad = true;
         /// <summary>
@@ -1204,6 +1201,18 @@ namespace MICore
             }
         }
 
+        private UnknownBreakpointHandling _unknownBreakpointHandling;
+
+        public UnknownBreakpointHandling UnknownBreakpointHandling
+        {
+            get { return _unknownBreakpointHandling; }
+            set
+            {
+                VerifyCanModifyProperty(nameof(UnknownBreakpointHandling));
+                _unknownBreakpointHandling = value;
+            }
+        }
+
         public string GetOptionsString()
         {
             try
@@ -1249,7 +1258,7 @@ namespace MICore
             if (string.IsNullOrEmpty(options))
                 throw new InvalidLaunchOptionsException(MICoreResources.Error_StringIsNullOrEmpty);
 
-            logger?.WriteTextBlock("LaunchOptions", options);
+            logger?.WriteTextBlock(LogLevel.Verbose, "LaunchOptions", options);
 
             LaunchOptions launchOptions = null;
             Guid clsidLauncher = Guid.Empty;
@@ -1260,7 +1269,11 @@ namespace MICore
             {
                 try
                 {
-                    JObject parsedOptions = JObject.Parse(options);
+                    JObject parsedOptions = JsonConvert.DeserializeObject<JObject>(options, new JsonSerializerSettings { DateParseHandling = DateParseHandling.None });
+                    if (parsedOptions is null)
+                    {
+                        throw new InvalidLaunchOptionsException(MICoreResources.Error_UnknownLaunchOptions);
+                    }
 
                     // if the customLauncher element is present then try using the custom launcher implementation from the config store
                     if (parsedOptions["customLauncher"] != null && !string.IsNullOrWhiteSpace(parsedOptions["customLauncher"].Value<string>()))
@@ -1330,11 +1343,8 @@ namespace MICore
 
                             case "IOSLaunchOptions":
                                 {
-                                    serializer = GetXmlSerializer(typeof(IOSLaunchOptions));
-                                    launcherXmlOptions = Deserialize(serializer, reader);
-                                    clsidLauncher = new Guid("316783D1-1824-4847-B3D3-FB048960EDCF");
+                                    throw new InvalidLaunchOptionsException(MICoreResources.Error_Deprecated_iOS_Debugging);
                                 }
-                                break;
 
                             case "AndroidLaunchOptions":
                                 {
@@ -1483,13 +1493,17 @@ namespace MICore
                 string optFile = Path.Combine(slnRoot, "Microsoft.MIEngine.Options.xml");
                 if (File.Exists(optFile))
                 {
-                    var reader = File.OpenText(optFile);
-                    string suppOptions = reader.ReadToEnd();
+                    string suppOptions = null;
+                    using (var reader = File.OpenText(optFile))
+                    {
+                        suppOptions = reader.ReadToEnd();
+                    }
+
                     if (!string.IsNullOrEmpty(suppOptions))
                     {
                         try
                         {
-                            logger?.WriteTextBlock("SupplementalOptions", suppOptions);
+                            logger?.WriteTextBlock(LogLevel.Verbose, "SupplementalOptions", suppOptions);
                             XmlReader xmlRrd = OpenXml(suppOptions);
                             XmlSerializer serializer = GetXmlSerializer(typeof(Xml.LaunchOptions.SupplementalLaunchOptions));
                             return (Xml.LaunchOptions.SupplementalLaunchOptions)Deserialize(serializer, xmlRrd);
@@ -1548,6 +1562,11 @@ namespace MICore
             setupCmds.AddRange(newSetupCmds);
             SetupCommands = new ReadOnlyCollection<LaunchCommand>(setupCmds);
 
+            var postRemoteConnectCmds = this.PostRemoteConnectCommands.ToList();
+            var newPostRemoteConnectCmds = LaunchCommand.CreateCollection(suppOptions.PostRemoteConnectCommands);
+            postRemoteConnectCmds.AddRange(newPostRemoteConnectCmds);
+            PostRemoteConnectCommands = new ReadOnlyCollection<LaunchCommand>(postRemoteConnectCmds);
+
             MergeMap(suppOptions.SourceMap);
             if (!string.IsNullOrWhiteSpace(suppOptions.AdditionalSOLibSearchPath))
             {
@@ -1568,9 +1587,9 @@ namespace MICore
             {
                 DebugChildProcesses = suppOptions.DebugChildProcesses;
             }
-            if (string.IsNullOrWhiteSpace(VisualizerFile))
+            if (!this.VisualizerFiles.Contains(suppOptions.VisualizerFile))
             {
-                VisualizerFile = suppOptions.VisualizerFile;
+                this.VisualizerFiles.Add(suppOptions.VisualizerFile);
             }
             if (suppOptions.ShowDisplayStringSpecified)
             {
@@ -1760,7 +1779,10 @@ namespace MICore
                 this.TargetArchitecture = ConvertTargetArchitectureAttribute(options.TargetArchitecture);
             }
 
-            this.VisualizerFile = options.VisualizerFile;
+            if (options.VisualizerFile != null && options.VisualizerFile.Count > 0)
+            {
+                this.VisualizerFiles.AddRange(options.VisualizerFile);
+            }
             this.ShowDisplayString = options.ShowDisplayString.GetValueOrDefault(false);
 
             this.AdditionalSOLibSearchPath = String.IsNullOrEmpty(this.AdditionalSOLibSearchPath) ?
@@ -1802,6 +1824,8 @@ namespace MICore
             {
                 throw new InvalidLaunchOptionsException(String.Format(CultureInfo.InvariantCulture, MICoreResources.Error_OptionNotSupported, nameof(options.HardwareBreakpointInfo.Require), nameof(MIMode.Lldb)));
             }
+
+            this.UnknownBreakpointHandling = options.UnknownBreakpointHandling ?? UnknownBreakpointHandling.Throw;
         }
 
         protected void InitializeCommonOptions(Xml.LaunchOptions.BaseLaunchOptions source)
@@ -1828,13 +1852,14 @@ namespace MICore
             if (string.IsNullOrEmpty(this.WorkingDirectory))
                 this.WorkingDirectory = source.WorkingDirectory;
 
-            if (string.IsNullOrEmpty(this.VisualizerFile))
-                this.VisualizerFile = source.VisualizerFile;
+            if (!string.IsNullOrEmpty(source.VisualizerFile))
+                this.VisualizerFiles.Add(source.VisualizerFile);
 
             this.ShowDisplayString = source.ShowDisplayString;
             this.WaitDynamicLibLoad = source.WaitDynamicLibLoad;
 
             this.SetupCommands = LaunchCommand.CreateCollection(source.SetupCommands);
+            this.PostRemoteConnectCommands = LaunchCommand.CreateCollection(source.PostRemoteConnectCommands);
 
             if (source.CustomLaunchSetupCommands != null)
             {

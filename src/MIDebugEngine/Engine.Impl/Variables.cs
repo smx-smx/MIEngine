@@ -213,7 +213,7 @@ namespace Microsoft.MIDebugEngine
             : this(ctx, engine, thread)
         {
             // strip off formatting string
-            _strippedName = StripFormatSpecifier(expr, out _format);
+            _strippedName = ProcessFormatSpecifiers(expr, out _format);
             Name = displayName;
             IsParameter = isParameter;
             _parent = null;
@@ -225,7 +225,7 @@ namespace Microsoft.MIDebugEngine
             : this(parent.ThreadContext, engine, parent.Client)
         {
             // strip off formatting string
-            _strippedName = StripFormatSpecifier(expr, out _format);
+            _strippedName = ProcessFormatSpecifiers(expr, out _format);
             Name = displayName ?? expr;
             _parent = parent;
             VariableNodeType = NodeType.Synthetic;
@@ -236,7 +236,7 @@ namespace Microsoft.MIDebugEngine
             : this(parent._ctx, parent._engine, parent.Client)
         {
             // strip off formatting string
-            _strippedName = StripFormatSpecifier(expr, out _format);
+            _strippedName = ProcessFormatSpecifiers(expr, out _format);
             Name = expr;
             VariableNodeType = NodeType.Root;
         }
@@ -289,8 +289,9 @@ namespace Microsoft.MIDebugEngine
             {
                 VariableNodeType = NodeType.ArrayElement;
             }
-            else if (Name == "<anonymous union>")
+            else if (Name == "<anonymous union>" || TypeName.EndsWith("(anonymous union)", StringComparison.InvariantCulture))
             {
+                // GDB provides anonymous unions in the expression; LLDB includes them in the type name and leaves the expression empty
                 VariableNodeType = NodeType.AnonymousUnion;
             }
             else if (Name.Length > 1 && Name[0] == '*')
@@ -337,9 +338,19 @@ namespace Microsoft.MIDebugEngine
         private ThreadContext _ctx;
         private bool _attribsFetched;
         private bool _isReadonly;
+        /// <summary>
+        /// This callback is used when we need to call into the engine for additional information for
+        /// the format specifier.
+        ///
+        /// <param name="threadId">The threadId to use when calling the engine.</param>
+        /// <param name="frameLevel">The frameLevel to use when calling the engine.</param>
+        /// <returns>The expression to send to the engine</returns>
+        /// </summary>
+        private delegate Task<string> DeferedFormatExpression(int threadId, uint frameLevel);
+        private DeferedFormatExpression _deferedFormatExpression;
+        private IVariableInformation _parent;
         private string _format;
         private string _strippedName;  // "Name" stripped of format specifiers
-        private IVariableInformation _parent;
         private string _fullname;
 
         public enum NodeType
@@ -365,7 +376,7 @@ namespace Microsoft.MIDebugEngine
 
         private static Regex s_isFunction = new Regex(@".+\(.*\).*");
 
-        private string StripFormatSpecifier(string exp, out string formatSpecifier)
+        private string ProcessFormatSpecifiers(string exp, out string formatSpecifier)
         {
             formatSpecifier = null; // will be used with -var-set-format
 
@@ -378,10 +389,16 @@ namespace Microsoft.MIDebugEngine
             if (lastComma <= 0)
                 return exp;
 
+            // Find the format specifier expression
+            string expFS = exp.Substring(lastComma + 1).Trim();
+
+            // Strip off modifiers that may be included together with another format specifier, e.g. 'nvoXb' is a valid format specifier, but we only care about the 'Xb' part
+            // This is not quite the right fix -- really the below switch statement should be a series of if statements. But since none of the supported format specifiers
+            // contain any of these characters we can fix this the simple way and remove them.
+            expFS = expFS.Replace("nvo", "").Replace("na", "").Replace("nr", "").Replace("nd", "");
+
             // https://docs.microsoft.com/en-us/visualstudio/debugger/format-specifiers-in-cpp
-            string expFS = exp.Substring(lastComma + 1);
-            string trimmed = expFS.Trim();
-            switch (trimmed)
+            switch (expFS)
             {
                 case "x":
                 case "X":
@@ -415,29 +432,80 @@ namespace Microsoft.MIDebugEngine
                 case "su":
                 case "sub":
                     return "(const char16_t*)(" + exp.Substring(0, lastComma) + ")";
+                case "s32":
+                case "s32b":
+                    return "(const char32_t*)(" + exp.Substring(0, lastComma) + ")";
                 case "c":
                     return "(char)(" + exp.Substring(0, lastComma) + ")";
                 // just remove and ignore these
                 case "en":
-                case "na":
-                case "nd":
-                case "nr":
                 case "!":
                 case "":
                     return exp.Substring(0, lastComma);
             }
 
-            // array with static size
-            // TODO: could return '(T(*)[n])(exp)' but requires T
-            var m = Regex.Match(trimmed, @"^\[?(\d+)\]?$");
-            if (m.Success)
-                return exp.Substring(0, lastComma);
+            // Array with static size
+            // Note that size specifiers may also include format specifiers (e.g. "ptr,[10]s8") which we should recognize in the regex, but ignore, since neither LLDB nor GDB support them
+            var matchStatic = Regex.Match(expFS, @"^\[?(\d+)\]?[a-zA-Z\d]*$");
+            if (matchStatic.Success)
+            {
+                string count = matchStatic.Groups[1].Value; // (\d+) capture group
+                string expr = exp.Substring(0, lastComma);
 
-            // array with dynamic size
-            if (Regex.Match(trimmed, @"^\[([a-zA-Z_][a-zA-Z_\d]*)\]$").Success)
-                return exp.Substring(0, lastComma);
+                if (_engine.DebuggedProcess.MICommandFactory.Mode == MIMode.Gdb)
+                {
+                    // return *<expression>@<count> which is only supported in GDB
+                    return FormattableString.Invariant($"*{expr}@{count}");
+                }
+                else
+                {
+                    _deferedFormatExpression = async (int threadId, uint frameLevel) =>
+                    {
+                        string derefType = await GetDereferencedTypeStringAsync(expr, threadId, frameLevel);
+
+                        if (!string.IsNullOrEmpty(derefType))
+                        {
+                            // Cast 'exp' to a pointer of an array of type 'T' with size 'n' with '*(T(*)[n])(exp)'
+                            return FormattableString.Invariant($"*({derefType}(*)[{count}])({expr})");
+                        }
+
+                        return string.Empty;
+                    };
+
+                    return expr;
+                }
+            }
+
+            // Array with dynamic size is not supported, discard the format specifier
+            var matchDynamic = Regex.Match(expFS, @"^\[.*\][a-zA-Z\d]*$");
+            if (matchDynamic.Success)
+            {
+                string expr = exp.Substring(0, lastComma);
+                return expr;
+            }
 
             return exp;
+        }
+
+        private async Task<string> GetDereferencedTypeStringAsync(string expr, int threadId, uint frameLevel)
+        {
+            // TODO: Should we error if the current type is not a pointer type?
+
+            // Evaluates: *expr
+            Results results = await _engine.DebuggedProcess.MICommandFactory.VarCreate($"*({expr})", threadId, frameLevel, 0, ResultClass.None);
+
+            if (results.ResultClass == ResultClass.done)
+            {
+                string varName = results.TryFindString("name");
+                if (!String.IsNullOrWhiteSpace(varName))
+                {
+                    // Remove the variable we created as we don't track it.
+                    await _engine.DebuggedProcess.MICommandFactory.VarDelete(varName);
+                }
+
+                return results.TryFindString("type");
+            }
+            return null;
         }
 
         public void AsyncEval(IDebugEventCallback2 pExprCallback)
@@ -518,13 +586,8 @@ namespace Microsoft.MIDebugEngine
                     string consoleResults = null;
 
                     consoleResults = await MIDebugCommandDispatcher.ExecuteCommand(consoleCommand, _debuggedProcess, ignoreFailures: true);
-                    Value = String.Empty;
+                    Value = consoleResults;
                     this.TypeName = null;
-
-                    if (!String.IsNullOrEmpty(consoleResults))
-                    {
-                        _debuggedProcess.WriteOutput(consoleResults);
-                    }
                 }
                 else
                 {
@@ -546,7 +609,25 @@ namespace Microsoft.MIDebugEngine
 
                     int threadId = Client.GetDebuggedThread().Id;
                     uint frameLevel = _ctx.Level;
-                    Results results = await _engine.DebuggedProcess.MICommandFactory.VarCreate(_strippedName, threadId, frameLevel, dwFlags, ResultClass.None);
+
+                    string expression = _strippedName;
+
+                    // If we have a deferred format expression, resolve it.
+                    if (_deferedFormatExpression != null)
+                    {
+                        string deferedExpression = await _deferedFormatExpression(threadId, frameLevel);
+
+                        if (!string.IsNullOrEmpty(deferedExpression))
+                        {
+                            expression = deferedExpression;
+                        }
+                        else
+                        {
+                            Debug.Fail(FormattableString.Invariant($"Failed to resolve deferred expression. Falling back to original: '{expression}'."));
+                        }
+                    }
+
+                    Results results = await _engine.DebuggedProcess.MICommandFactory.VarCreate(expression, threadId, frameLevel, dwFlags, ResultClass.None);
 
                     if (results.ResultClass == ResultClass.done)
                     {
@@ -642,7 +723,20 @@ namespace Microsoft.MIDebugEngine
             Results results = await _engine.DebuggedProcess.MICommandFactory.VarSetFormat(_internalName, _format, ResultClass.None);
             if (results.ResultClass == ResultClass.done)
             {
-                Value = results.FindString("value");
+                if (results.Contains("value"))
+                {
+                    // Sample output for GDB:     ^done,format="natural",value="123"
+                    this.Value = results.FindString("value");
+                }
+                else if (results.TryFind("changelist", out ValueListValue changeList))
+                {
+                    // Sample output for LLDB:    ^done,changelist=[{name="var1",value="123",in_scope="true",type_changed="false",type_changed="0"}]
+                    this.Value = changeList.Content[0].FindString("value");
+                }
+                else
+                {
+                    throw new MIResultFormatException("value", results);
+                }
             }
             else if (results.ResultClass == ResultClass.error)
             {

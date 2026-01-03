@@ -47,21 +47,22 @@ namespace Microsoft.SSHDebugPS.Docker
         [JsonProperty("Names")]
         public override string Name { get; set; }
 
-        [JsonProperty("Image")]
+        [JsonProperty(nameof(Image))]
         public string Image { get; private set; }
 
-        [JsonProperty("Ports")]
+        [JsonProperty(nameof(Ports))]
         public string Ports { get; set; }
 
-        [JsonProperty("Command")]
+        [JsonProperty(nameof(Command))]
         public string Command { get; private set; }
 
-        [JsonProperty("Status")]
+        [JsonProperty(nameof(Status))]
         public string Status { get; private set; }
 
         [JsonProperty("CreatedAt")]
         public string Created { get; private set; }
 
+        [JsonIgnore]
         public string Platform { get; set; }
 
         #endregion

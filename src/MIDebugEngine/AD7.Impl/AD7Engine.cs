@@ -196,7 +196,7 @@ namespace Microsoft.MIDebugEngine
         {
             Debug.Assert(_ad7ProgramId == Guid.Empty);
 
-            Logger.LoadMIDebugLogger(_configStore);
+            Logger.EnsureInitialized();
 
             if (celtPrograms != 1)
             {
@@ -505,7 +505,7 @@ namespace Microsoft.MIDebugEngine
         public int SetRegistryRoot(string registryRoot)
         {
             _configStore = new HostConfigurationStore(registryRoot);
-            Logger = Logger.EnsureInitialized(_configStore);
+            Logger = Logger.EnsureInitialized();
             return Constants.S_OK;
         }
 
@@ -546,7 +546,7 @@ namespace Microsoft.MIDebugEngine
             Debug.Assert(_ad7ProgramId == Guid.Empty);
 
             // Check if the logger was enabled late.
-            Logger.LoadMIDebugLogger(_configStore);
+            Logger.EnsureInitialized();
 
             process = null;
 

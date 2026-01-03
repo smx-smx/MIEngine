@@ -36,12 +36,9 @@
       </Item>
       <Item ItemId=";@debugExtensions.cppdbg.schema.definitions.cpp_schema.definitions.hardwareBreakpointsOptions.properties.require.ty" ItemType="0" PsrId="306" Leaf="false">
         <Disp Icon="Dir" LocTbl="false" />
-        <Item ItemId=";(...) pe" ItemType="0" PsrId="306" Leaf="true">
-          <Str Cat="Text">
+        <Item ItemId=";(...) pe" ItemType="0" PsrId="306" InstFlg="true" Leaf="true">
+          <Str Cat="Text" UsrLk="true">
             <Val><![CDATA[boolean]]></Val>
-            <Tgt Cat="Text" Stat="Loc" Orig="New">
-              <Val><![CDATA[boolean]]></Val>
-            </Tgt>
           </Str>
           <Disp Icon="Str" />
         </Item>
@@ -129,12 +126,9 @@
       </Item>
       <Item ItemId=";@debugExtensions.cppdbg.schema.definitions.cpp_schema.definitions.pipeTransportOptions.properties.pipeCmd.items.ty" ItemType="0" PsrId="306" Leaf="false">
         <Disp Icon="Dir" LocTbl="false" />
-        <Item ItemId=";(...) pe" ItemType="0" PsrId="306" Leaf="true">
-          <Str Cat="Text">
+        <Item ItemId=";(...) pe" ItemType="0" PsrId="306" InstFlg="true" Leaf="true">
+          <Str Cat="Text" UsrLk="true">
             <Val><![CDATA[string]]></Val>
-            <Tgt Cat="Text" Stat="Loc" Orig="New">
-              <Val><![CDATA[stringa]]></Val>
-            </Tgt>
           </Str>
           <Disp Icon="Str" />
         </Item>
@@ -265,21 +259,15 @@
         </Str>
         <Disp Icon="Str" />
       </Item>
-      <Item ItemId=";debugExtensions.cppdbg.schema.definitions.cpp_schema.definitions.hardwareBreakpointsOptions.properties.limit.type" ItemType="0" PsrId="306" Leaf="true">
-        <Str Cat="Text">
+      <Item ItemId=";debugExtensions.cppdbg.schema.definitions.cpp_schema.definitions.hardwareBreakpointsOptions.properties.limit.type" ItemType="0" PsrId="306" InstFlg="true" Leaf="true">
+        <Str Cat="Text" UsrLk="true">
           <Val><![CDATA[integer]]></Val>
-          <Tgt Cat="Text" Stat="Loc" Orig="New">
-            <Val><![CDATA[integer]]></Val>
-          </Tgt>
         </Str>
         <Disp Icon="Str" />
       </Item>
-      <Item ItemId=";debugExtensions.cppdbg.schema.definitions.cpp_schema.definitions.hardwareBreakpointsOptions.type" ItemType="0" PsrId="306" Leaf="true">
-        <Str Cat="Text">
+      <Item ItemId=";debugExtensions.cppdbg.schema.definitions.cpp_schema.definitions.hardwareBreakpointsOptions.type" ItemType="0" PsrId="306" InstFlg="true" Leaf="true">
+        <Str Cat="Text" UsrLk="true">
           <Val><![CDATA[object]]></Val>
-          <Tgt Cat="Text" Stat="Loc" Orig="New">
-            <Val><![CDATA[object]]></Val>
-          </Tgt>
         </Str>
         <Disp Icon="Str" />
       </Item>
@@ -331,12 +319,9 @@
         </Str>
         <Disp Icon="Str" />
       </Item>
-      <Item ItemId=";debugExtensions.cppdbg.schema.definitions.cpp_schema.definitions.pipeTransportOptions.properties.pipeCmd.type" ItemType="0" PsrId="306" Leaf="true">
-        <Str Cat="Text">
+      <Item ItemId=";debugExtensions.cppdbg.schema.definitions.cpp_schema.definitions.pipeTransportOptions.properties.pipeCmd.type" ItemType="0" PsrId="306" InstFlg="true" Leaf="true">
+        <Str Cat="Text" UsrLk="true">
           <Val><![CDATA[array]]></Val>
-          <Tgt Cat="Text" Stat="Loc" Orig="New">
-            <Val><![CDATA[matrice]]></Val>
-          </Tgt>
         </Str>
         <Disp Icon="Str" />
       </Item>
@@ -604,12 +589,9 @@
         </Str>
         <Disp Icon="Str" />
       </Item>
-      <Item ItemId=";debugExtensions.cppdbg.schema.definitions.cpp_schema.properties.hardwareBreakpoints.$ref" ItemType="0" PsrId="306" Leaf="true">
-        <Str Cat="Text">
+      <Item ItemId=";debugExtensions.cppdbg.schema.definitions.cpp_schema.properties.hardwareBreakpoints.$ref" ItemType="0" PsrId="306" InstFlg="true" Leaf="true">
+        <Str Cat="Text" UsrLk="true">
           <Val><![CDATA[#/definitions/cpp_schema/definitions/hardwareBreakpointsOptions]]></Val>
-          <Tgt Cat="Text" Stat="Loc" Orig="New">
-            <Val><![CDATA[#/definitions/cpp_schema/definitions/hardwareBreakpointsOptions]]></Val>
-          </Tgt>
         </Str>
         <Disp Icon="Str" />
       </Item>
@@ -697,12 +679,9 @@
         </Str>
         <Disp Icon="Str" />
       </Item>
-      <Item ItemId=";debugExtensions.cppdbg.schema.definitions.cpp_schema.properties.postRemoteConnectCommands.type" ItemType="0" PsrId="306" Leaf="true">
-        <Str Cat="Text">
+      <Item ItemId=";debugExtensions.cppdbg.schema.definitions.cpp_schema.properties.postRemoteConnectCommands.type" ItemType="0" PsrId="306" InstFlg="true" Leaf="true">
+        <Str Cat="Text" UsrLk="true">
           <Val><![CDATA[array]]></Val>
-          <Tgt Cat="Text" Stat="Loc" Orig="New">
-            <Val><![CDATA[matrice]]></Val>
-          </Tgt>
         </Str>
         <Disp Icon="Str" />
       </Item>
@@ -793,21 +772,15 @@
         </Str>
         <Disp Icon="Str" />
       </Item>
-      <Item ItemId=";debugExtensions.cppdbg.schema.definitions.cpp_schema.properties.sourceFileMap.additionalProperties.anyOf[0].type" ItemType="0" PsrId="306" Leaf="true">
-        <Str Cat="Text">
+      <Item ItemId=";debugExtensions.cppdbg.schema.definitions.cpp_schema.properties.sourceFileMap.additionalProperties.anyOf[0].type" ItemType="0" PsrId="306" InstFlg="true" Leaf="true">
+        <Str Cat="Text" UsrLk="true">
           <Val><![CDATA[string]]></Val>
-          <Tgt Cat="Text" Stat="Loc" Orig="New">
-            <Val><![CDATA[stringa]]></Val>
-          </Tgt>
         </Str>
         <Disp Icon="Str" />
       </Item>
-      <Item ItemId=";debugExtensions.cppdbg.schema.definitions.cpp_schema.properties.sourceFileMap.additionalProperties.anyOf[1].$ref" ItemType="0" PsrId="306" Leaf="true">
-        <Str Cat="Text">
+      <Item ItemId=";debugExtensions.cppdbg.schema.definitions.cpp_schema.properties.sourceFileMap.additionalProperties.anyOf[1].$ref" ItemType="0" PsrId="306" InstFlg="true" Leaf="true">
+        <Str Cat="Text" UsrLk="true">
           <Val><![CDATA[#/definitions/cpp_schema/definitions/sourceFileMapOptions]]></Val>
-          <Tgt Cat="Text" Stat="Loc" Orig="New">
-            <Val><![CDATA[#/definitions/cpp_schema/definitions/sourceFileMapOptions]]></Val>
-          </Tgt>
         </Str>
         <Disp Icon="Str" />
       </Item>
@@ -838,12 +811,9 @@
         </Str>
         <Disp Icon="Str" />
       </Item>
-      <Item ItemId=";debugExtensions.cppdbg.schema.definitions.cpp_schema.properties.stopAtConnect.type" ItemType="0" PsrId="306" Leaf="true">
-        <Str Cat="Text">
+      <Item ItemId=";debugExtensions.cppdbg.schema.definitions.cpp_schema.properties.stopAtConnect.type" ItemType="0" PsrId="306" InstFlg="true" Leaf="true">
+        <Str Cat="Text" UsrLk="true">
           <Val><![CDATA[boolean]]></Val>
-          <Tgt Cat="Text" Stat="Loc" Orig="New">
-            <Val><![CDATA[boolean]]></Val>
-          </Tgt>
         </Str>
         <Disp Icon="Str" />
       </Item>
@@ -865,6 +835,33 @@
         </Str>
         <Disp Icon="Str" />
       </Item>
+      <Item ItemId=";debugExtensions.cppdbg.schema.definitions.cpp_schema.properties.unknownBreakpointHandling.description" ItemType="0" PsrId="306" Leaf="true">
+        <Str Cat="Text">
+          <Val><![CDATA[Controls how breakpoints set externally (usually via raw GDB commands) are handled when hit.]A;Allowed values are "throw", which acts as if an exception was thrown by the application, and "stop", which only pauses the debug session. The default value is "throw".]]></Val>
+          <Tgt Cat="Text" Stat="Loc" Orig="New">
+            <Val><![CDATA[Controllare la modalità di gestione dei punti di interruzione impostati esternamente (in genere tramite comandi GDB non elaborati) quando vengono selezionati.]A;I valori consentiti sono "throw", che funziona come se fosse stata generata un'eccezione dall'applicazione e "stop", che sospende solo la sessione di debug. Il valore predefinito è "throw".]]></Val>
+          </Tgt>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";debugExtensions.cppdbg.schema.definitions.cpp_schema.properties.unknownBreakpointHandling.enum[0]" ItemType="0" PsrId="306" InstFlg="true" Leaf="true">
+        <Str Cat="Text" UsrLk="true">
+          <Val><![CDATA[throw]]></Val>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";debugExtensions.cppdbg.schema.definitions.cpp_schema.properties.unknownBreakpointHandling.enum[1]" ItemType="0" PsrId="306" InstFlg="true" Leaf="true">
+        <Str Cat="Text" UsrLk="true">
+          <Val><![CDATA[stop]]></Val>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
+      <Item ItemId=";debugExtensions.cppdbg.schema.definitions.cpp_schema.properties.unknownBreakpointHandling.type" ItemType="0" PsrId="306" InstFlg="true" Leaf="true">
+        <Str Cat="Text" UsrLk="true">
+          <Val><![CDATA[string]]></Val>
+        </Str>
+        <Disp Icon="Str" />
+      </Item>
       <Item ItemId=";debugExtensions.cppdbg.schema.definitions.cpp_schema.properties.useExtendedRemote.description" ItemType="0" PsrId="306" Leaf="true">
         <Str Cat="Text">
           <Val><![CDATA[If true, use gdb extended-remote mode to connect to gdbserver.]]></Val>
@@ -874,12 +871,9 @@
         </Str>
         <Disp Icon="Str" />
       </Item>
-      <Item ItemId=";debugExtensions.cppdbg.schema.definitions.cpp_schema.properties.useExtendedRemote.type" ItemType="0" PsrId="306" Leaf="true">
-        <Str Cat="Text">
+      <Item ItemId=";debugExtensions.cppdbg.schema.definitions.cpp_schema.properties.useExtendedRemote.type" ItemType="0" PsrId="306" InstFlg="true" Leaf="true">
+        <Str Cat="Text" UsrLk="true">
           <Val><![CDATA[boolean]]></Val>
-          <Tgt Cat="Text" Stat="Loc" Orig="New">
-            <Val><![CDATA[booleano]]></Val>
-          </Tgt>
         </Str>
         <Disp Icon="Str" />
       </Item>
@@ -919,12 +913,9 @@
         </Str>
         <Disp Icon="Str" />
       </Item>
-      <Item ItemId=";debugExtensions.cppdbg.templates[0].fileExtensions[2]" ItemType="0" PsrId="306" Leaf="true">
-        <Str Cat="Text">
+      <Item ItemId=";debugExtensions.cppdbg.templates[0].fileExtensions[2]" ItemType="0" PsrId="306" InstFlg="true" Leaf="true">
+        <Str Cat="Text" UsrLk="true">
           <Val><![CDATA[makefile]]></Val>
-          <Tgt Cat="Text" Stat="Loc" Orig="New">
-            <Val><![CDATA[makefile]]></Val>
-          </Tgt>
         </Str>
         <Disp Icon="Str" />
       </Item>
@@ -988,12 +979,9 @@
         </Str>
         <Disp Icon="Str" />
       </Item>
-      <Item ItemId=";debugExtensions.cppdbg.templates[1].fileExtensions[2]" ItemType="0" PsrId="306" Leaf="true">
-        <Str Cat="Text">
+      <Item ItemId=";debugExtensions.cppdbg.templates[1].fileExtensions[2]" ItemType="0" PsrId="306" InstFlg="true" Leaf="true">
+        <Str Cat="Text" UsrLk="true">
           <Val><![CDATA[makefile]]></Val>
-          <Tgt Cat="Text" Stat="Loc" Orig="New">
-            <Val><![CDATA[makefile]]></Val>
-          </Tgt>
         </Str>
         <Disp Icon="Str" />
       </Item>
@@ -1012,12 +1000,6 @@
       <Item ItemId=";debugExtensions.cppdbg.templates[1].initialConfiguration.miDebuggerPath" ItemType="0" PsrId="306" InstFlg="true" Leaf="true">
         <Str Cat="Text" UsrLk="true">
           <Val><![CDATA[${env.MINGW_PREFIX}\bin\gdb.exe]]></Val>
-        </Str>
-        <Disp Icon="Str" />
-      </Item>
-      <Item ItemId=";debugExtensions.cppdbg.templates[1].initialConfiguration.processId" ItemType="0" PsrId="306" InstFlg="true" Leaf="true">
-        <Str Cat="Text" UsrLk="true">
-          <Val><![CDATA[0]]></Val>
         </Str>
         <Disp Icon="Str" />
       </Item>

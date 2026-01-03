@@ -21,8 +21,9 @@ This repo also includes:
 
 ### Debug Multiple Platforms
 
-* Support for debugging C/C++ on [Android](http://blogs.msdn.com/b/vcblog/archive/2014/12/12/debug-jni-android-applications-using-visual-c-cross-platform-mobile.aspx) and [iOS](http://blogs.msdn.com/b/vcblog/archive/2015/04/29/debugging-c-code-on-ios-with-visual-studio-2015.aspx).
-* Debug on any platform that supports GDB, such as Linux and even [Raspberry Pi](http://blogs.msdn.com/b/vcblog/archive/2015/04/29/debug-c-code-on-linux-from-visual-studio.aspx).
+* Support for debugging C/C++ on [Android](http://blogs.msdn.com/b/vcblog/archive/2014/12/12/debug-jni-android-applications-using-visual-c-cross-platform-mobile.aspx) ~~and [iOS](http://blogs.msdn.com/b/vcblog/archive/2015/04/29/debugging-c-code-on-ios-with-visual-studio-2015.aspx).~~
+    * Note: iOS support is not available after Visual Studio 2022.
+* * Debug on any platform that supports GDB, such as Linux and even [Raspberry Pi](http://blogs.msdn.com/b/vcblog/archive/2015/04/29/debug-c-code-on-linux-from-visual-studio.aspx).
 
 ### Prerequisites
 MIEngine can be built with either [Visual Studio](https://visualstudio.microsoft.com/downloads/) or with the [.NET CLI](https://dotnet.microsoft.com/download/dotnet).
@@ -30,10 +31,7 @@ MIEngine can be built with either [Visual Studio](https://visualstudio.microsoft
 * See the [wiki](https://github.com/Microsoft/MIEngine/wiki) for more info.
 
 ### Contribute!
-Before you contribute, please read through the contributing and developer guides to get an idea of requirements for pull requests. 
-
-* [Contributing Guide](https://github.com/Microsoft/MIEngine/wiki/Contributing-Code)
-* [Developer Guide](https://github.com/Microsoft/MIEngine/wiki/Building-Testing-and-Debugging)
+Before you contribute, please read through the [Contributing Guide](https://github.com/Microsoft/MIEngine/wiki/Contributing-Code) to get an idea of requirements for pull requests. 
 
 Want to get more familiar with what's going on in the code?
 * [Pull requests](https://github.com/Microsoft/MIEngine/pulls): [Open](https://github.com/Microsoft/MIEngine/pulls?q=is%3Aopen+is%3Apr)/[Closed](https://github.com/Microsoft/MIEngine/pulls?q=is%3Apr+is%3Aclosed)

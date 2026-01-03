@@ -40,6 +40,8 @@ namespace MakePIAPortable
             { "System.Collections.Generic.IEnumerable", System_Runtime },
             { "System.Reflection.DefaultMemberAttribute", System_Runtime },
             { "System.Reflection.AssemblyDelaySignAttribute", System_Runtime},
+            { "System.Reflection.AssemblyKeyFileAttribute", System_Runtime },
+            { "System.Reflection.AssemblySignatureKeyAttribute", System_Runtime },
             { "System.Runtime.CompilerServices.CompilationRelaxationsAttribute", System_Runtime },
             { "System.Runtime.CompilerServices.RuntimeCompatibilityAttribute", System_Runtime },
             { "System.Diagnostics.DebuggableAttribute", System_Runtime },
@@ -67,6 +69,8 @@ namespace MakePIAPortable
             { "System.DateTime", System_Runtime },
             { "System.ObsoleteAttribute", System_Runtime },
             { "System.Attribute", System_Runtime },
+            { "System.AttributeUsageAttribute", System_Runtime },
+            { "System.AttributeTargets", System_Runtime },
 
             // System.Runtime.InteropServices
             { "System.Runtime.InteropServices.ClassInterfaceAttribute", System_Runtime_InteropServices },
@@ -302,7 +306,8 @@ namespace MakePIAPortable
                 line.Contains(".custom instance void [mscorlib]System.Runtime.InteropServices.TypeLibFuncAttribute::.ctor(") ||
                 line.Contains(".custom instance void [mscorlib]System.Runtime.InteropServices.TypeLibFuncAttribute::.ctor(") ||
                 line.Contains(".custom instance void [mscorlib]System.Resources.SatelliteContractVersionAttribute::.ctor(") ||
-                line.Contains(".custom instance void [mscorlib]System.Runtime.CompilerServices.DateTimeConstantAttribute::.ctor(");
+                line.Contains(".custom instance void [mscorlib]System.Runtime.CompilerServices.DateTimeConstantAttribute::.ctor(") ||
+                line.Contains(".custom instance void System.Runtime.CompilerServices.NullableAttribute::.ctor(");
         }
 
         private static void SkipClass(InputFile inputFile)

@@ -128,8 +128,38 @@ namespace OpenDebugAD7
             m_dataBreakpoints = new Dictionary<string, IDebugPendingBreakpoint2>();
             m_exceptionBreakpoints = new List<string>();
             m_variableManager = new VariableManager();
+
+            //Register sendInvalidate request
+            Protocol.RegisterRequestType<SendInvalidateRequest, SendInvalidateArguments>(r => this.HandleSendInvalidateRequestAsync(r));
+    
         }
 
+        private void HandleSendInvalidateRequestAsync(IRequestResponder<SendInvalidateArguments> responder)
+        {
+            InvalidatedEvent invalidated = new InvalidatedEvent();
+            // Set the Arguments only if passed
+            if (null != responder.Arguments) {
+                // Setting the Areas if passed
+                if (null != responder.Arguments.Areas) {
+                    invalidated.Areas = responder.Arguments.Areas;
+                }
+
+                // Setting the StackFrameId if passed (and the 'threadId' is ignored).
+                if (null != responder.Arguments.StackFrameId)
+                {
+                    invalidated.StackFrameId = responder.Arguments.StackFrameId;
+                }
+
+                // Setting the ThreadId if passed
+                else if (null != responder.Arguments.ThreadId)
+                {
+                    invalidated.ThreadId = responder.Arguments.ThreadId;
+                }
+            }
+
+            Protocol.SendEvent(invalidated);
+
+        }
         #endregion
 
         #region Utility
@@ -215,17 +245,38 @@ namespace OpenDebugAD7
 
             if (logging != null)
             {
+                HostLogger.Reset();
+
                 m_logger.SetLoggingConfiguration(LoggingCategory.Exception, logging.GetValueAsBool("exceptions").GetValueOrDefault(true));
                 m_logger.SetLoggingConfiguration(LoggingCategory.Module, logging.GetValueAsBool("moduleLoad").GetValueOrDefault(true));
                 m_logger.SetLoggingConfiguration(LoggingCategory.StdOut, logging.GetValueAsBool("programOutput").GetValueOrDefault(true));
                 m_logger.SetLoggingConfiguration(LoggingCategory.StdErr, logging.GetValueAsBool("programOutput").GetValueOrDefault(true));
 
-                bool? engineLogging = logging.GetValueAsBool("engineLogging");
-                if (engineLogging.HasValue)
+                JToken engineLogging = logging.GetValue("engineLogging", StringComparison.OrdinalIgnoreCase);
+                if (engineLogging != null)
                 {
-                    m_logger.SetLoggingConfiguration(LoggingCategory.EngineLogging, engineLogging.Value);
-                    HostLogger.EnableHostLogging();
-                    HostLogger.Instance.LogCallback = s => m_logger.WriteLine(LoggingCategory.EngineLogging, s);
+                    if (engineLogging.Type == JTokenType.Boolean)
+                    {
+                        bool engineLoggingBool = engineLogging.Value<bool>();
+                        if (engineLoggingBool)
+                        {
+                            m_logger.SetLoggingConfiguration(LoggingCategory.EngineLogging, true);
+                            HostLogger.EnableHostLogging((message) => m_logger.WriteLine(LoggingCategory.EngineLogging, message), LogLevel.Verbose);
+                        }
+                    }
+                    else if (engineLogging.Type == JTokenType.String)
+                    {
+                        string engineLoggingString = engineLogging.Value<string>();
+                        if (Enum.TryParse(engineLoggingString, ignoreCase: true, out LogLevel level))
+                        {
+                            m_logger.SetLoggingConfiguration(LoggingCategory.EngineLogging, true);
+                            HostLogger.EnableHostLogging((message) => m_logger.WriteLine(LoggingCategory.EngineLogging, message), level);
+                        }
+                    }
+                    else
+                    {
+                        m_logger.WriteLine(LoggingCategory.EngineLogging, string.Format(CultureInfo.CurrentCulture, AD7Resources.Warning_EngineLoggingParse, engineLogging.ToString()));
+                    }
                 }
 
                 bool? trace = logging.GetValueAsBool("trace");
@@ -239,6 +290,33 @@ namespace OpenDebugAD7
                 {
                     m_logger.SetLoggingConfiguration(LoggingCategory.AdapterResponse, traceResponse.Value);
                 }
+
+                JToken natvisDiagnostics = logging.GetValue("natvisDiagnostics", StringComparison.OrdinalIgnoreCase);
+                if (natvisDiagnostics != null)
+                {
+                    if (natvisDiagnostics.Type == JTokenType.Boolean)
+                    {
+                        bool natvisDiagnosticsBool = natvisDiagnostics.Value<bool>();
+                        if (natvisDiagnosticsBool)
+                        {
+                            m_logger.SetLoggingConfiguration(LoggingCategory.NatvisDiagnostics, true);
+                            HostLogger.EnableNatvisDiagnostics((message) => m_logger.WriteLine(LoggingCategory.NatvisDiagnostics, message), LogLevel.Verbose);
+                        }
+                    }
+                    else if (natvisDiagnostics.Type == JTokenType.String)
+                    {
+                        string natvisDiagnosticsString = natvisDiagnostics.Value<string>();
+                        if (Enum.TryParse(natvisDiagnosticsString, ignoreCase: true, out LogLevel level))
+                        {
+                            m_logger.SetLoggingConfiguration(LoggingCategory.NatvisDiagnostics, true);
+                            HostLogger.EnableNatvisDiagnostics((message) => m_logger.WriteLine(LoggingCategory.NatvisDiagnostics, string.Concat("[Natvis] ", message)), level);
+                        }
+                    }
+                    else
+                    {
+                        m_logger.WriteLine(LoggingCategory.EngineLogging, string.Format(CultureInfo.CurrentCulture, AD7Resources.Warning_NatvisLoggingParse, natvisDiagnostics.ToString()));
+                    }
+                }
             }
         }
 
@@ -246,7 +324,7 @@ namespace OpenDebugAD7
         {
             string miMode = args.GetValueAsString("MIMode");
 
-            // If MIMode is not provided, set default to GDB. 
+            // If MIMode is not provided, set default to GDB.
             if (string.IsNullOrEmpty(miMode))
             {
                 args["MIMode"] = "gdb";
@@ -329,8 +407,8 @@ namespace OpenDebugAD7
 
             if (breakpointEvent != null)
             {
-                if (breakpointEvent.EnumBreakpoints(out IEnumDebugBoundBreakpoints2 enumBreakpoints) == HRConstants.S_OK && 
-                    enumBreakpoints.GetCount(out uint bpCount) == HRConstants.S_OK && 
+                if (breakpointEvent.EnumBreakpoints(out IEnumDebugBoundBreakpoints2 enumBreakpoints) == HRConstants.S_OK &&
+                    enumBreakpoints.GetCount(out uint bpCount) == HRConstants.S_OK &&
                     bpCount > 0)
                 {
 
@@ -811,7 +889,6 @@ namespace OpenDebugAD7
                 }
             }
 
-            BeforeContinue();
             ErrorBuilder builder = new ErrorBuilder(() => errorMessage);
             m_isStepping = true;
 
@@ -837,6 +914,10 @@ namespace OpenDebugAD7
                 m_isStopped = true;
                 throw;
             }
+            // The program should now be stepping, so it is safe to discard the
+            // cached program state.
+            BeforeContinue();
+            m_isStepping = true;
         }
 
         private enum ClientId
@@ -1651,83 +1732,84 @@ namespace OpenDebugAD7
                         responder.SetError(new ProtocolException(String.Format(CultureInfo.CurrentCulture, AD7Resources.Error_PropertyInvalid, StackTraceRequest.RequestType, "threadId")));
                         return;
                     }
+                }
 
-                    enum_FRAMEINFO_FLAGS flags = enum_FRAMEINFO_FLAGS.FIF_FUNCNAME | // need a function name
-                                                    enum_FRAMEINFO_FLAGS.FIF_FRAME | // need a frame object
-                                                    enum_FRAMEINFO_FLAGS.FIF_FLAGS |
-                                                    enum_FRAMEINFO_FLAGS.FIF_DEBUG_MODULEP;
+                enum_FRAMEINFO_FLAGS flags = enum_FRAMEINFO_FLAGS.FIF_FUNCNAME | // need a function name
+                                                enum_FRAMEINFO_FLAGS.FIF_FRAME | // need a frame object
+                                                enum_FRAMEINFO_FLAGS.FIF_FLAGS |
+                                                enum_FRAMEINFO_FLAGS.FIF_DEBUG_MODULEP;
 
-                    uint radix = Constants.EvaluationRadix;
+                uint radix = Constants.EvaluationRadix;
 
-                    if (responder.Arguments.Format != null)
+                if (responder.Arguments.Format != null)
+                {
+                    StackFrameFormat format = responder.Arguments.Format;
+
+                    if (format.Hex == true)
                     {
-                        StackFrameFormat format = responder.Arguments.Format;
-
-                        if (format.Hex == true)
-                        {
-                            radix = 16;
-                        }
-
-                        if (format.Line == true)
-                        {
-                            flags |= enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_LINES;
-                        }
-
-                        if (format.Module == true)
-                        {
-                            flags |= enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_MODULE;
-                        }
-
-                        if (format.Parameters == true)
-                        {
-                            flags |= enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_ARGS;
-                        }
-
-                        if (format.ParameterNames == true)
-                        {
-                            flags |= enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_ARGS_NAMES;
-                        }
-
-                        if (format.ParameterTypes == true)
-                        {
-                            flags |= enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_ARGS_TYPES;
-                        }
-
-                        if (format.ParameterValues == true)
-                        {
-                            flags |= enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_ARGS_VALUES;
-                        }
-                    }
-                    else
-                    {
-                        // No formatting flags provided in the request - use the default format, which includes the module name and argument names / types
-                        flags |= enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_MODULE |
-                                    enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_ARGS |
-                                    enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_ARGS_TYPES |
-                                    enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_ARGS_NAMES;
+                        radix = 16;
                     }
 
-                    if (m_settingsCallback != null)
+                    if (format.Line == true)
                     {
-                        // MIEngine generally gets the radix from IDebugSettingsCallback110 rather than using the radix passed
-                        m_settingsCallback.Radix = radix;
+                        flags |= enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_LINES;
                     }
 
-                    ErrorBuilder eb = new ErrorBuilder(() => AD7Resources.Error_Scenario_StackTrace);
-
-                    try
+                    if (format.Module == true)
                     {
-                        eb.CheckHR(thread.EnumFrameInfo(flags, radix, out IEnumDebugFrameInfo2 frameEnum));
-                        eb.CheckHR(frameEnum.GetCount(out uint totalFrames));
-
-                        frameEnumInfo = new ThreadFrameEnumInfo(frameEnum, totalFrames);
+                        flags |= enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_MODULE;
                     }
-                    catch (AD7Exception ex)
+
+                    if (format.Parameters == true)
                     {
-                        responder.SetError(new ProtocolException(ex.Message, ex));
-                        return;
+                        flags |= enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_ARGS;
+                    }
+
+                    if (format.ParameterNames == true)
+                    {
+                        flags |= enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_ARGS_NAMES;
+                    }
+
+                    if (format.ParameterTypes == true)
+                    {
+                        flags |= enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_ARGS_TYPES;
+                    }
+
+                    if (format.ParameterValues == true)
+                    {
+                        flags |= enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_ARGS_VALUES;
                     }
                 }
+                else
+                {
+                    // No formatting flags provided in the request - use the default format, which includes the module name and argument names / types
+                    flags |= enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_MODULE |
+                                enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_ARGS |
+                                enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_ARGS_TYPES |
+                                enum_FRAMEINFO_FLAGS.FIF_FUNCNAME_ARGS_NAMES;
+                }
+
+                if (m_settingsCallback != null)
+                {
+                    // MIEngine generally gets the radix from IDebugSettingsCallback110 rather than using the radix passed
+                    m_settingsCallback.Radix = radix;
+                }
+
+                ErrorBuilder eb = new ErrorBuilder(() => AD7Resources.Error_Scenario_StackTrace);
+
+                try
+                {
+                    eb.CheckHR(thread.EnumFrameInfo(flags, radix, out IEnumDebugFrameInfo2 frameEnum));
+                    eb.CheckHR(frameEnum.GetCount(out uint totalFrames));
+
+                    frameEnumInfo = new ThreadFrameEnumInfo(frameEnum, totalFrames);
+                }
+                catch (AD7Exception ex)
+                {
+                    responder.SetError(new ProtocolException(ex.Message, ex));
+                    return;
+                }
+
 
                 if (startFrame >= frameEnumInfo.TotalFrames)
                 {
@@ -2351,7 +2433,7 @@ namespace OpenDebugAD7
                         {
                             // already created
                             IDebugBreakpointRequest2 breakpointRequest;
-                            if (dict[bp.Line].GetBreakpointRequest(out breakpointRequest) == 0 && 
+                            if (dict[bp.Line].GetBreakpointRequest(out breakpointRequest) == 0 &&
                                 breakpointRequest is AD7BreakPointRequest ad7BPRequest)
                             {
                                 // Check to see if this breakpoint has a condition that has changed.
@@ -2674,7 +2756,7 @@ namespace OpenDebugAD7
         }
 
 
-        protected override void HandleSetExceptionBreakpointsRequestAsync(IRequestResponder<SetExceptionBreakpointsArguments> responder)
+        protected override void HandleSetExceptionBreakpointsRequestAsync(IRequestResponder<SetExceptionBreakpointsArguments, SetExceptionBreakpointsResponse> responder)
         {
             HashSet<Guid> activeExceptionCategories = new HashSet<Guid>();
 
@@ -2928,6 +3010,8 @@ namespace OpenDebugAD7
 
         protected override void HandleEvaluateRequestAsync(IRequestResponder<EvaluateArguments, EvaluateResponse> responder)
         {
+            try
+            {
             EvaluateArguments.ContextValue context = responder.Arguments.Context.GetValueOrDefault(EvaluateArguments.ContextValue.Unknown);
             int frameId = responder.Arguments.FrameId.GetValueOrDefault(-1);
             string expression = responder.Arguments.Expression;
@@ -3014,6 +3098,13 @@ namespace OpenDebugAD7
                 VariablesReference = variable.VariablesReference,
                 MemoryReference = memoryReference
             });
+
+            }
+            catch (Exception e)
+            {
+                responder.SetError(new ProtocolException(e.Message));
+                return;
+            }
         }
 
         protected override void HandleReadMemoryRequestAsync(IRequestResponder<ReadMemoryArguments, ReadMemoryResponse> responder)
@@ -3262,7 +3353,7 @@ namespace OpenDebugAD7
             {
                 responder.SetError(new ProtocolException(ex.Message));
             }
-            
+
         }
 
         #endregion
@@ -3407,8 +3498,8 @@ namespace OpenDebugAD7
                         }
                     }
 
-                    // Need to check to see if the previous continuation of the debuggee was a step. 
-                    // If so, we need to send a stopping event to the UI to signal the step completed successfully. 
+                    // Need to check to see if the previous continuation of the debuggee was a step.
+                    // If so, we need to send a stopping event to the UI to signal the step completed successfully.
                     if (!m_isStepping)
                     {
                         ThreadPool.QueueUserWorkItem((obj) =>
@@ -3748,7 +3839,7 @@ namespace OpenDebugAD7
         {
             IDebugProcessInfoUpdatedEvent158 debugProcessInfoUpdated = pEvent as IDebugProcessInfoUpdatedEvent158;
 
-            if (debugProcessInfoUpdated != null && 
+            if (debugProcessInfoUpdated != null &&
                 debugProcessInfoUpdated.GetUpdatedProcessInfo(out string name, out uint systemProcessId) == HRConstants.S_OK)
             {
                 // Update Process Name and Id
@@ -3812,5 +3903,22 @@ namespace OpenDebugAD7
                 throw new NotImplementedException();
             }
         }
+    }
+
+    internal class SendInvalidateRequest : DebugRequest<SendInvalidateArguments>
+    {
+ 
+        public SendInvalidateRequest(): base("sendInvalidate")
+        {
+        }
+    }
+
+    internal class SendInvalidateArguments : DebugRequestArguments
+    {
+
+        public List<InvalidatedAreas> Areas { get; set; }
+        public int? ThreadId { get; set; }
+        public int? StackFrameId { get; set; }
+
     }
 }
